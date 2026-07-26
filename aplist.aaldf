@@ -6,6 +6,7 @@ App latest update date:2026-7-26
 App source html name:File importer
 App icon file name:File manager.png
 App publisher:CMT & explorerT7
+Oldest supported version:HTMOS Alpha
 
 App name:Music Player
 App release date:2026-7-26
@@ -13,6 +14,7 @@ App latest update date:2026-7-26
 App source html name:Music Player.html
 App icon file name:Music Player.png
 App publisher:CMT & explorerT7
+Oldest supported version:HTMOS Alpha
 
 App name:CMT
 App release date:2026-7-26
@@ -20,5 +22,6 @@ App latest update date:2026-7-26
 App source html name:CMT.html
 App icon file name:cmt.png
 App publisher:CMT & explorerT7
+Oldest supported version:HTMOS Alpha
 
 {end}
