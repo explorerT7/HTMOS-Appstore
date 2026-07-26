@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTMOS Music Player</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', system-ui, sans-serif; }
+        body { background: #181818; color: #ffffff; height: 100vh; display: flex; flex-direction: column; padding: 20px; overflow: hidden; }
+        
+        .player-container { display: flex; flex-direction: column; gap: 20px; height: 100%; max-width: 600px; margin: 0 auto; width: 100%; justify-content: space-between; }
+        
+        .album-art { width: 100%; height: 220px; background: #282828; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 64px; box-shadow: 0 8px 24px rgba(0,0,0,0.5); position: relative; overflow: hidden; }
+        .album-art img { width: 100%; height: 100%; object-fit: cover; position: absolute; }
+        
+        .track-info { text-align: center; }
+        .track-title { font-size: 18px; font-weight: 600; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .track-artist { font-size: 13px; color: #b3b3b3; }
+
+        .progress-container { display: flex; flex-direction: column; gap: 6px; }
+        .progress-bar { width: 100%; height: 6px; background: #404040; border-radius: 3px; cursor: pointer; position: relative; }
+        .progress-fill { height: 100%; background: #1db954; border-radius: 3px; width: 0%; transition: width 0.1s linear; }
+        .time-labels { display: flex; justify-content: space-between; font-size: 11px; color: #b3b3b3; }
+
+        .controls { display: flex; justify-content: center; align-items: center; gap: 20px; }
+        .ctrl-btn { background: transparent; border: none; color: #ffffff; font-size: 20px; cursor: pointer; transition: transform 0.1s, color 0.1s; }
+        .ctrl-btn:hover { color: #1db954; transform: scale(1.1); }
+        .play-pause-btn { width: 50px; height: 50px; background: #1db954; color: #ffffff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 22px; cursor: pointer; border: none; transition: transform 0.1s, background 0.1s; }
+        .play-pause-btn:hover { background: #1ed760; transform: scale(1.05); }
+
+        .playlist-box { flex: 1; background: #242424; border-radius: 8px; padding: 12px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; max-height: 150px; }
+        .playlist-item { padding: 8px 12px; border-radius: 6px; font-size: 13px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; background: #2a2a2a; transition: background 0.15s; }
+        .playlist-item:hover { background: #333333; }
+        .playlist-item.active { background: #1db954; color: #fff; font-weight: 600; }
+
+        .upload-section { display: flex; gap: 10px; align-items: center; }
+        .upload-btn { flex: 1; padding: 10px; background: #282828; border: 1px dashed #555; border-radius: 6px; text-align: center; font-size: 13px; cursor: pointer; color: #b3b3b3; transition: border-color 0.2s, color 0.2s; }
+        .upload-btn:hover { border-color: #1db954; color: #ffffff; }
+        input[type="file"] { display: none; }
+    </style>
+</head>
+<body>
+
+    <audio id="audio-element"></audio>
+
+    <div class="player-container">
+        <div class="album-art" id="album-art-container">
+            🎵
+        </div>
+
+        <div class="track-info">
+            <div class="track-title" id="track-title">No track selected</div>
+            <div class="track-artist" id="track-artist">Add MP3 files to start listening</div>
+        </div>
+
+        <div class="progress-container">
+            <div class="progress-bar" id="progress-bar" onclick="seekTrack(event)">
+                <div class="progress-fill" id="progress-fill"></div>
+            </div>
+            <div class="time-labels">
+                <span id="current-time">0:00</span>
+                <span id="total-duration">0:00</span>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button class="ctrl-btn" onclick="prevTrack()">⏮</button>
+            <button class="play-pause-btn" id="play-btn" onclick="togglePlay()">▶</button>
+            <button class="ctrl-btn" onclick="nextTrack()">⏭</button>
+        </div>
+
+        <div class="playlist-box" id="playlist-box">
+            <div style="text-align: center; color: #777; font-size: 12px; padding: 10px;">Playlist is empty</div>
+        </div>
+
+        <div class="upload-section">
+            <label class="upload-btn" for="mp3-file-input">📂 Choose MP3 Files</label>
+            <input type="file" id="mp3-file-input" accept="audio/mp3, audio/*" multiple onchange="handleFilesSelected(event)">
+            <button class="upload-btn" style="flex: 0 0 auto; padding: 10px 16px;" onclick="importToHtmosFs()" title="Import current playlist to HTMOS filesystem">💾 Export to OS</button>
+        </div>
+    </div>
+
+    <script>
+        let playlist = [];
+        let currentIndex = 0;
+        const audioElement = document.getElementById('audio-element');
+
+        audioElement.addEventListener('timeupdate', updateProgress);
+        audioElement.addEventListener('ended', nextTrack);
+
+        function handleFilesSelected(event) {
+            const files = event.target.files;
+            if (!files.length) return;
+
+            for (let file of files) {
+                const trackUrl = URL.createObjectURL(file);
+                playlist.push({
+                    name: file.name.replace(/\.[^/.]+$/, ""), // Remove extension for clean title
+                    filename: file.name,
+                    url: trackUrl
+                });
+            }
+
+            renderPlaylist();
+            if (playlist.length === files.length) {
+                loadTrack(0);
+            }
+        }
+
+        function renderPlaylist() {
+            const box = document.getElementById('playlist-box');
+            box.innerHTML = "";
+
+            if (playlist.length === 0) {
+                box.innerHTML = `<div style="text-align: center; color: #777; font-size: 12px; padding: 10px;">Playlist is empty</div>`;
+                return;
+            }
+
+            playlist.forEach((track, index) => {
+                const item = document.createElement('div');
+                item.className = `playlist-item ${index === currentIndex ? 'active' : ''}`;
+                item.innerHTML = `<span>🎵 ${track.name}</span>`;
+                item.onclick = () => loadAndPlay(index);
+                box.appendChild(item);
+            });
+        }
+
+        function loadTrack(index) {
+            if (index < 0 || index >= playlist.length) return;
+            currentIndex = index;
+            const track = playlist[currentIndex];
+
+            audioElement.src = track.url;
+            document.getElementById('track-title').innerText = track.name;
+            document.getElementById('track-artist').innerText = "Local Audio File";
+            renderPlaylist();
+        }
+
+        function loadAndPlay(index) {
+            loadTrack(index);
+            playTrack();
+        }
+
+        function togglePlay() {
+            if (playlist.length === 0) return;
+            if (audioElement.paused) {
+                playTrack();
+            } else {
+                pauseTrack();
+            }
+        }
+
+        function playTrack() {
+            if (playlist.length === 0) return;
+            audioElement.play();
+            document.getElementById('play-btn').innerText = "⏸";
+        }
+
+        function pauseTrack() {
+            audioElement.pause();
+            document.getElementById('play-btn').innerText = "▶";
+        }
+
+        function nextTrack() {
+            if (playlist.length === 0) return;
+            currentIndex = (currentIndex + 1) % playlist.length;
+            loadAndPlay(currentIndex);
+        }
+
+        function prevTrack() {
+            if (playlist.length === 0) return;
+            currentIndex = (currentIndex - 1 + playlist.length) % playlist.length;
+            loadAndPlay(currentIndex);
+        }
+
+        function updateProgress() {
+            if (isNaN(audioElement.duration)) return;
+            const current = audioElement.currentTime;
+            const duration = audioElement.duration;
+
+            const percentage = (current / duration) * 100;
+            document.getElementById('progress-fill').style.width = `${percentage}%`;
+
+            document.getElementById('current-time').innerText = formatTime(current);
+            document.getElementById('total-duration').innerText = formatTime(duration);
+        }
+
+        function seekTrack(e) {
+            if (isNaN(audioElement.duration)) return;
+            const bar = document.getElementById('progress-bar');
+            const rect = bar.getBoundingClientRect();
+            const clickX = e.clientX - rect.left;
+            const width = rect.width;
+            const percentage = clickX / width;
+
+            audioElement.currentTime = percentage * audioElement.duration;
+        }
+
+        function formatTime(secs) {
+            const mins = Math.floor(secs / 60);
+            const remainingSecs = Math.floor(secs % 60);
+            return `${mins}:${remainingSecs < 10 ? '0' : ''}${remainingSecs}`;
+        }
+
+        async function importToHtmosFs() {
+            if (playlist.length === 0) {
+                alert("No tracks in playlist to export!");
+                return;
+            }
+            const currentTrack = playlist[currentIndex];
+            
+            // Fetch blob data and convert to text/base64 to send to main window
+            const response = await fetch(currentTrack.url);
+            const blob = await response.blob();
+            
+            const reader = new FileReader();
+            reader.onload = function() {
+                const base64Data = reader.result;
+                if (window.parent && window.parent !== window) {
+                    window.parent.postMessage({
+                        action: "IMPORT_FILE_TO_HTMOS",
+                        filename: currentTrack.filename,
+                        content: base64Data
+                    }, "*");
+                }
+            };
+            reader.readAsDataURL(blob);
+        }
+    </script>
+</body>
+</html>
