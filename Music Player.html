@@ -3,19 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HTMOS Music Player</title>
+    <title>HTMOS Music Player - Storage Edition</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', system-ui, sans-serif; }
         body { background: #181818; color: #ffffff; height: 100vh; display: flex; flex-direction: column; padding: 20px; overflow: hidden; }
         
-        .player-container { display: flex; flex-direction: column; gap: 20px; height: 100%; max-width: 600px; margin: 0 auto; width: 100%; justify-content: space-between; }
+        .player-container { display: flex; flex-direction: column; gap: 16px; height: 100%; max-width: 600px; margin: 0 auto; width: 100%; justify-content: space-between; }
         
-        .album-art { width: 100%; height: 220px; background: #282828; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 64px; box-shadow: 0 8px 24px rgba(0,0,0,0.5); position: relative; overflow: hidden; }
-        .album-art img { width: 100%; height: 100%; object-fit: cover; position: absolute; }
+        .album-art { width: 100%; height: 180px; background: #282828; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 54px; box-shadow: 0 8px 24px rgba(0,0,0,0.5); position: relative; overflow: hidden; }
         
         .track-info { text-align: center; }
-        .track-title { font-size: 18px; font-weight: 600; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .track-artist { font-size: 13px; color: #b3b3b3; }
+        .track-title { font-size: 16px; font-weight: 600; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .track-artist { font-size: 12px; color: #b3b3b3; }
 
         .progress-container { display: flex; flex-direction: column; gap: 6px; }
         .progress-bar { width: 100%; height: 6px; background: #404040; border-radius: 3px; cursor: pointer; position: relative; }
@@ -23,20 +22,19 @@
         .time-labels { display: flex; justify-content: space-between; font-size: 11px; color: #b3b3b3; }
 
         .controls { display: flex; justify-content: center; align-items: center; gap: 20px; }
-        .ctrl-btn { background: transparent; border: none; color: #ffffff; font-size: 20px; cursor: pointer; transition: transform 0.1s, color 0.1s; }
+        .ctrl-btn { background: transparent; border: none; color: #ffffff; font-size: 18px; cursor: pointer; transition: transform 0.1s, color 0.1s; }
         .ctrl-btn:hover { color: #1db954; transform: scale(1.1); }
-        .play-pause-btn { width: 50px; height: 50px; background: #1db954; color: #ffffff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 22px; cursor: pointer; border: none; transition: transform 0.1s, background 0.1s; }
+        .play-pause-btn { width: 44px; height: 44px; background: #1db954; color: #ffffff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; cursor: pointer; border: none; transition: transform 0.1s, background 0.1s; }
         .play-pause-btn:hover { background: #1ed760; transform: scale(1.05); }
 
-        .playlist-box { flex: 1; background: #242424; border-radius: 8px; padding: 12px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; max-height: 150px; }
+        .playlist-box { flex: 1; background: #242424; border-radius: 8px; padding: 12px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
         .playlist-item { padding: 8px 12px; border-radius: 6px; font-size: 13px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; background: #2a2a2a; transition: background 0.15s; }
         .playlist-item:hover { background: #333333; }
         .playlist-item.active { background: #1db954; color: #fff; font-weight: 600; }
 
-        .upload-section { display: flex; gap: 10px; align-items: center; }
-        .upload-btn { flex: 1; padding: 10px; background: #282828; border: 1px dashed #555; border-radius: 6px; text-align: center; font-size: 13px; cursor: pointer; color: #b3b3b3; transition: border-color 0.2s, color 0.2s; }
-        .upload-btn:hover { border-color: #1db954; color: #ffffff; }
-        input[type="file"] { display: none; }
+        .action-row { display: flex; gap: 10px; }
+        .action-btn { flex: 1; padding: 10px; background: #282828; border: 1px solid #444; border-radius: 6px; text-align: center; font-size: 13px; cursor: pointer; color: #ffffff; font-weight: 600; transition: background 0.2s, border-color 0.2s; }
+        .action-btn:hover { background: #333; border-color: #1db954; }
     </style>
 </head>
 <body>
@@ -44,13 +42,11 @@
     <audio id="audio-element"></audio>
 
     <div class="player-container">
-        <div class="album-art" id="album-art-container">
-            🎵
-        </div>
+        <div class="album-art" id="album-art-container">🎵</div>
 
         <div class="track-info">
             <div class="track-title" id="track-title">No track selected</div>
-            <div class="track-artist" id="track-artist">Add MP3 files to start listening</div>
+            <div class="track-artist" id="track-artist">Load music from HTMOS storage</div>
         </div>
 
         <div class="progress-container">
@@ -70,13 +66,11 @@
         </div>
 
         <div class="playlist-box" id="playlist-box">
-            <div style="text-align: center; color: #777; font-size: 12px; padding: 10px;">Playlist is empty</div>
+            <div style="text-align: center; color: #777; font-size: 12px; padding: 20px;">Scanning HTMOS storage for audio files...</div>
         </div>
 
-        <div class="upload-section">
-            <label class="upload-btn" for="mp3-file-input">📂 Choose MP3 Files</label>
-            <input type="file" id="mp3-file-input" accept="audio/mp3, audio/*" multiple onchange="handleFilesSelected(event)">
-            <button class="upload-btn" style="flex: 0 0 auto; padding: 10px 16px;" onclick="importToHtmosFs()" title="Import current playlist to HTMOS filesystem">💾 Export to OS</button>
+        <div class="action-row">
+            <button class="action-btn" onclick="loadStorageTracks()">🔄 Refresh Storage Files</button>
         </div>
     </div>
 
@@ -88,22 +82,58 @@
         audioElement.addEventListener('timeupdate', updateProgress);
         audioElement.addEventListener('ended', nextTrack);
 
-        function handleFilesSelected(event) {
-            const files = event.target.files;
-            if (!files.length) return;
+        // Open IndexedDB connection used by HTMOS 11 to fetch stored files
+        function getHtmosFiles() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open("HTMOS_DB", 1);
+                request.onerror = () => reject("Failed to connect to HTMOS storage.");
+                request.onsuccess = (event) => {
+                    const db = event.target.result;
+                    if (!db.objectStoreNames.contains("filesystem")) {
+                        resolve({});
+                        return;
+                    }
+                    const transaction = db.transaction(["filesystem"], "readonly");
+                    const store = transaction.objectStore("filesystem");
+                    const getReq = store.get("htmos_filesystem");
+                    getReq.onsuccess = () => resolve(getReq.result || {});
+                    getReq.onerror = () => reject("Could not read HTMOS filesystem.");
+                };
+            });
+        }
 
-            for (let file of files) {
-                const trackUrl = URL.createObjectURL(file);
-                playlist.push({
-                    name: file.name.replace(/\.[^/.]+$/, ""), // Remove extension for clean title
-                    filename: file.name,
-                    url: trackUrl
-                });
-            }
+        async function loadStorageTracks() {
+            const box = document.getElementById('playlist-box');
+            box.innerHTML = `<div style="text-align: center; color: #777; font-size: 12px; padding: 20px;">Loading tracks from storage...</div>`;
 
-            renderPlaylist();
-            if (playlist.length === files.length) {
-                loadTrack(0);
+            try {
+                const fs = await getHtmosFiles();
+                playlist = [];
+
+                for (const [filename, content] of Object.entries(fs)) {
+                    // Check if file is an audio file or base64 data-URI audio string
+                    if (filename.match(/\.(mp3|wav|ogg|m4a)$/i) || (typeof content === 'string' && content.startsWith('data:audio/'))) {
+                        let audioSrc = content;
+                        // If it's stored as plain text/binary reference rather than data-URL, create a blob URI
+                        if (!content.startsWith('data:audio/')) {
+                            const blob = new Blob([content], { type: 'audio/mp3' });
+                            audioSrc = URL.createObjectURL(blob);
+                        }
+
+                        playlist.push({
+                            name: filename.replace(/\.[^/.]+$/, ""),
+                            filename: filename,
+                            url: audioSrc
+                        });
+                    }
+                }
+
+                renderPlaylist();
+                if (playlist.length > 0 && !audioElement.src) {
+                    loadTrack(0);
+                }
+            } catch (err) {
+                box.innerHTML = `<div style="text-align: center; color: #e81123; font-size: 12px; padding: 20px;">Error reading local storage.</div>`;
             }
         }
 
@@ -112,14 +142,14 @@
             box.innerHTML = "";
 
             if (playlist.length === 0) {
-                box.innerHTML = `<div style="text-align: center; color: #777; font-size: 12px; padding: 10px;">Playlist is empty</div>`;
+                box.innerHTML = `<div style="text-align: center; color: #777; font-size: 12px; padding: 20px;">No music files found in HTMOS storage.<br><br>Tip: Drop or save .mp3 files into the File Explorer first!</div>`;
                 return;
             }
 
             playlist.forEach((track, index) => {
                 const item = document.createElement('div');
                 item.className = `playlist-item ${index === currentIndex ? 'active' : ''}`;
-                item.innerHTML = `<span>🎵 ${track.name}</span>`;
+                item.innerHTML = `<span>🎵 ${track.filename}</span>`;
                 item.onclick = () => loadAndPlay(index);
                 box.appendChild(item);
             });
@@ -132,7 +162,7 @@
 
             audioElement.src = track.url;
             document.getElementById('track-title').innerText = track.name;
-            document.getElementById('track-artist').innerText = "Local Audio File";
+            document.getElementById('track-artist').innerText = "HTMOS Local Storage";
             renderPlaylist();
         }
 
@@ -190,8 +220,7 @@
             const bar = document.getElementById('progress-bar');
             const rect = bar.getBoundingClientRect();
             const clickX = e.clientX - rect.left;
-            const width = rect.width;
-            const percentage = clickX / width;
+            const percentage = clickX / rect.width;
 
             audioElement.currentTime = percentage * audioElement.duration;
         }
@@ -202,30 +231,8 @@
             return `${mins}:${remainingSecs < 10 ? '0' : ''}${remainingSecs}`;
         }
 
-        async function importToHtmosFs() {
-            if (playlist.length === 0) {
-                alert("No tracks in playlist to export!");
-                return;
-            }
-            const currentTrack = playlist[currentIndex];
-            
-            // Fetch blob data and convert to text/base64 to send to main window
-            const response = await fetch(currentTrack.url);
-            const blob = await response.blob();
-            
-            const reader = new FileReader();
-            reader.onload = function() {
-                const base64Data = reader.result;
-                if (window.parent && window.parent !== window) {
-                    window.parent.postMessage({
-                        action: "IMPORT_FILE_TO_HTMOS",
-                        filename: currentTrack.filename,
-                        content: base64Data
-                    }, "*");
-                }
-            };
-            reader.readAsDataURL(blob);
-        }
+        // Automatically load tracks from HTMOS storage on launch
+        window.addEventListener('DOMContentLoaded', loadStorageTracks);
     </script>
 </body>
 </html>
