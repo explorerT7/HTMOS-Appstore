@@ -39,7 +39,6 @@
     <script>
         const dropZone = document.getElementById('drop-zone');
 
-        // Prevent default behavior for drag events
         ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
             dropZone.addEventListener(eventName, preventDefaults, false);
             window.addEventListener(eventName, preventDefaults, false);
@@ -50,7 +49,6 @@
             e.stopPropagation();
         }
 
-        // Highlight drop zone when item is dragged over it
         ['dragenter', 'dragover'].forEach(eventName => {
             dropZone.addEventListener(eventName, () => dropZone.classList.add('drag-over'), false);
         });
@@ -59,44 +57,44 @@
             dropZone.addEventListener(eventName, () => dropZone.classList.remove('drag-over'), false);
         });
 
-        // Handle dropped files
         dropZone.addEventListener('drop', (e) => {
-            const dt = e.dataTransfer;
-            const files = dt.files;
-            processFiles(files);
+            processFiles(e.dataTransfer.files);
         }, false);
 
-        // Handle selected files via input browser
         function handleFileSelect(e) {
-            const files = e.target.files;
-            processFiles(files);
+            processFiles(e.target.files);
         }
 
         function processFiles(files) {
             const fileListContainer = document.getElementById('file-list');
             
-            if (files.length > 0) {
-                fileListContainer.innerHTML = ""; // Clear placeholder text
+            if (files.length > 0 && fileListContainer.querySelector('p')) {
+                fileListContainer.innerHTML = "";
             }
 
             for (let i = 0; i < files.length; i++) {
                 const file = files[i];
-                
-                // Read the file contents as text
                 const reader = new FileReader();
+                
                 reader.onload = function(event) {
                     const fileContent = event.target.result;
                     
-                    // Package the file data and send it directly to the HTMOS parent window via postMessage
+                    // Package payload
                     const filePayload = {
                         action: "IMPORT_FILE_TO_HTMOS",
                         filename: file.name,
                         content: fileContent
                     };
 
-                    window.parent.postMessage(filePayload, "*");
+                    // Send to parent/HTMOS window safely
+                    if (window.parent !== window) {
+                        window.parent.postMessage(filePayload, "*");
+                    } else {
+                        // Fallback if opened in its own tab, store in local storage directly
+                        localStorage.setItem('htmos_imported_fallback_' + file.name, fileContent);
+                    }
 
-                    // Render file item in standalone UI
+                    // Render in app UI
                     const fileItem = document.createElement('div');
                     fileItem.className = 'file-item';
                     fileItem.innerHTML = `
