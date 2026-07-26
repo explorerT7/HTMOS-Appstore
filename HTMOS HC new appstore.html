@@ -1,0 +1,1258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTMOS 11</title>
+    <style>
+        :root {
+            --window-bg: rgba(255, 255, 255, 0.96);
+            --title-bar-bg: #fbfbfb;
+            --text-color: #333333;
+            --border-color: rgba(200, 200, 200, 0.5);
+            --toolbar-bg: #f7f7f7;
+            --section-bg: #fbfbfb;
+            --input-bg: #ffffff;
+            --input-text: #333333;
+        }
+
+        body.dark-theme {
+            --window-bg: rgba(30, 30, 30, 0.92);
+            --title-bar-bg: #2d2d2d;
+            --text-color: #f1f1f1;
+            --border-color: rgba(80, 80, 80, 0.5);
+            --toolbar-bg: #252525;
+            --section-bg: #252525;
+            --input-bg: #1e1e1e;
+            --input-text: #f1f1f1;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
+        body { height: 100vh; width: 100vw; background: radial-gradient(circle at center, #1a73e8, #0d47a1); background-size: cover; background-position: center; overflow: hidden; display: flex; flex-direction: column; }
+        
+        .desktop { flex: 1; position: relative; padding: 24px; display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); grid-auto-rows: 96px; gap: 16px; align-content: start; overflow: hidden; }
+        .taskbar { height: 52px; width: 100%; background: rgba(255, 255, 255, 0.75); backdrop-filter: blur(25px); display: flex; justify-content: center; align-items: center; border-top: 1px solid rgba(255, 255, 255, 0.3); z-index: 1000; box-shadow: 0 -2px 10px rgba(0,0,0,0.05); }
+        body.dark-theme .taskbar { background: rgba(30, 30, 30, 0.75); border-top: 1px solid rgba(255, 255, 255, 0.1); }
+        .taskbar-icons { display: flex; gap: 6px; align-items: center; background: rgba(255, 255, 255, 0.5); padding: 4px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.6); }
+        body.dark-theme .taskbar-icons { background: rgba(50, 50, 50, 0.5); border: 1px solid rgba(255,255,255,0.1); }
+        .icon-btn { width: 38px; height: 38px; border-radius: 6px; border: none; background: transparent; font-size: 20px; cursor: pointer; transition: all 0.15s ease; display: flex; align-items: center; justify-content: center; color: var(--text-color); }
+        .icon-btn:hover { background: rgba(0, 120, 215, 0.15); transform: translateY(-1px); }
+
+        .desktop-shortcut { display: flex; flex-direction: column; align-items: center; text-align: center; font-size: 12px; font-weight: 500; color: white; cursor: pointer; padding: 8px; border-radius: 8px; user-select: none; width: 88px; height: 88px; text-shadow: 0 1px 4px rgba(0,0,0,0.8); transition: background 0.15s; }
+        .desktop-shortcut:hover { background: rgba(255, 255, 255, 0.18); backdrop-filter: blur(4px); }
+        .desktop-shortcut img, .desktop-shortcut span.emoji-icon { width: 40px; height: 40px; font-size: 34px; margin-bottom: 6px; object-fit: contain; display: flex; align-items: center; justify-content: center; }
+
+        .start-menu { position: absolute; bottom: 62px; left: 50%; transform: translateX(-50%) scale(0.95); width: 320px; height: 190px; background: var(--window-bg); backdrop-filter: blur(30px); border-radius: 12px; box-shadow: 0 15px 35px rgba(0,0,0,0.25); border: 1px solid var(--border-color); display: none; flex-direction: column; padding: 22px; z-index: 1005; opacity: 0; transition: all 0.15s ease-in-out; justify-content: center; align-items: center; text-align: center; color: var(--text-color); }
+        .start-menu.show { display: flex; transform: translateX(-50%) scale(1); opacity: 1; }
+        .start-menu h3 { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
+        .start-menu p { font-size: 13px; opacity: 0.8; }
+
+        .window { position: absolute; top: 40px; left: 60px; width: 700px; height: 520px; background: var(--window-bg); backdrop-filter: blur(20px); border-radius: 10px; box-shadow: 0 20px 40px rgba(0,0,0,0.2); display: none; flex-direction: column; overflow: hidden; border: 1px solid var(--border-color); z-index: 10; resize: both; min-width: 340px; min-height: 220px; color: var(--text-color); }
+        .window.show { display: flex; }
+        .window.maximized { top: 0 !important; left: 0 !important; width: 100vw !important; height: calc(100vh - 52px) !important; border-radius: 0 !important; resize: none !important; }
+        
+        .title-bar { height: 36px; background: var(--title-bar-bg); display: flex; justify-content: space-between; align-items: center; padding-left: 12px; font-size: 12px; font-weight: 500; user-select: none; cursor: grab; border-bottom: 1px solid var(--border-color); color: var(--text-color); }
+        .title-bar:active { cursor: grabbing; }
+        .window-controls { display: flex; height: 100%; }
+        .window-controls button { width: 46px; height: 36px; border: none; background: transparent; cursor: pointer; font-size: 12px; display: flex; align-items: center; justify-content: center; transition: background 0.1s; color: var(--text-color); }
+        .window-controls button:hover { background: rgba(128,128,128,0.2); }
+        .window-controls button.close-btn:hover { background: #e81123; color: white; }
+        .window-content { flex: 1; display: flex; flex-direction: column; position: relative; overflow-y: auto; background: var(--window-bg); }
+
+        .terminal-body { background: #0c0c0c; color: #cccccc; font-family: 'Consolas', monospace; padding: 12px; flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+        .terminal-output { white-space: pre-wrap; word-break: break-all; }
+        .terminal-input-line { display: flex; align-items: center; gap: 6px; }
+        .terminal-prompt { color: #61afef; font-weight: bold; }
+        .terminal-input { background: transparent; border: none; color: #ffffff; font-family: 'Consolas', monospace; font-size: 13px; outline: none; flex: 1; }
+
+        #notepad-text { flex: 1; resize: none; padding: 12px; font-family: 'Consolas', monospace; font-size: 13px; border: none; outline: none; background: var(--window-bg); color: var(--text-color); }
+        .notepad-toolbar { padding: 8px 12px; background: var(--toolbar-bg); border-bottom: 1px solid var(--border-color); display: flex; gap: 8px; align-items: center; }
+        .notepad-toolbar input { padding: 5px 8px; flex: 1; border: 1px solid var(--border-color); border-radius: 4px; font-size: 12px; background: var(--input-bg); color: var(--input-text); }
+        .notepad-toolbar button { padding: 5px 12px; cursor: pointer; background: var(--toolbar-bg); border: 1px solid var(--border-color); border-radius: 4px; font-size: 12px; font-weight: 500; color: var(--text-color); }
+        .notepad-toolbar button:hover { background: rgba(128,128,128,0.2); }
+
+        .explorer-grid { padding: 24px; display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 16px; position: relative; height: 100%; overflow-y: auto; }
+        .explorer-grid.drag-over { background: rgba(0, 120, 215, 0.08); border: 2px dashed #0078D7; }
+        .file-icon { display: flex; flex-direction: column; align-items: center; text-align: center; font-size: 12px; font-weight: 500; color: var(--text-color); cursor: pointer; padding: 10px; border-radius: 6px; user-select: none; transition: background 0.1s; }
+        .file-icon:hover { background: rgba(0, 120, 215, 0.1); }
+        .file-icon img, .file-icon span.emoji-icon { font-size: 34px; width: 34px; height: 34px; margin-bottom: 6px; object-fit: contain; display: flex; align-items: center; justify-content: center; }
+
+        .store-header { padding: 16px 24px; background: var(--toolbar-bg); border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
+        .store-body { padding: 24px; display: flex; flex-direction: column; gap: 16px; }
+        .app-card { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--window-bg); transition: all 0.2s; gap: 16px; }
+        .app-card:hover { box-shadow: 0 6px 16px rgba(0,0,0,0.06); border-color: #0078D7; }
+        .app-card-left { display: flex; align-items: center; gap: 16px; }
+        .app-card-left img, .store-icon-placeholder { width: 48px; height: 48px; font-size: 28px; display: flex; align-items: center; justify-content: center; background: rgba(0, 120, 215, 0.1); border-radius: 10px; object-fit: contain; }
+        .app-info h4 { font-size: 15px; font-weight: 600; margin-bottom: 3px; }
+        .app-info p { font-size: 12px; opacity: 0.7; margin: 2px 0; }
+        .install-btn { padding: 7px 18px; background: #0078D7; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 13px; transition: background 0.15s; white-space: nowrap; }
+        .install-btn:hover { background: #005a9e; }
+        .uninstall-btn { padding: 6px 14px; background: #e81123; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 12px; transition: background 0.15s; }
+        .uninstall-btn:hover { background: #c50f1f; }
+
+        .settings-container { padding: 28px; display: flex; flex-direction: column; gap: 20px; }
+        .settings-section { background: var(--section-bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+        .settings-section h4 { font-size: 15px; font-weight: 600; }
+        .settings-section input[type="text"] { padding: 9px 12px; border: 1px solid var(--border-color); border-radius: 6px; width: 100%; font-size: 13px; background: var(--input-bg); color: var(--input-text); outline: none; }
+        .wallpaper-presets { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 5px; }
+        .wallpaper-thumb { height: 75px; border-radius: 6px; border: 2px solid transparent; cursor: pointer; background-size: cover; background-position: center; transition: transform 0.15s, border-color 0.15s; }
+        .wallpaper-thumb:hover { transform: scale(1.03); border-color: #0078D7; }
+        .settings-installed-list { display: flex; flex-direction: column; gap: 8px; max-height: 180px; overflow-y: auto; }
+        .settings-app-row { display: flex; justify-content: space-between; align-items: center; background: var(--window-bg); padding: 10px 14px; border: 1px solid var(--border-color); border-radius: 6px; }
+
+        .installer-container { padding: 32px; display: flex; flex-direction: column; gap: 20px; height: 100%; justify-content: center; background: var(--window-bg); }
+        .installer-box { background: var(--section-bg); border: 1px solid var(--border-color); padding: 20px; border-radius: 8px; display: flex; flex-direction: column; gap: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
+        .installer-options { display: flex; flex-direction: column; gap: 10px; margin-top: 6px; }
+        .installer-options label { display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 500; cursor: pointer; }
+
+        .htmos-dialog-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.45); backdrop-filter: blur(4px); display: none; justify-content: center; align-items: center; z-index: 99999; }
+        .htmos-dialog-box { width: 360px; background: var(--window-bg); color: var(--text-color); border-radius: 10px; box-shadow: 0 15px 35px rgba(0,0,0,0.25); border: 1px solid var(--border-color); display: flex; flex-direction: column; overflow: hidden; animation: dialogPop 0.15s ease-in-out; }
+        @keyframes dialogPop { from { transform: scale(0.92); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        .htmos-dialog-header { height: 36px; background: var(--title-bar-bg); display: flex; align-items: center; padding-left: 14px; font-size: 13px; font-weight: 600; border-bottom: 1px solid var(--border-color); }
+        .htmos-dialog-body { padding: 22px; font-size: 13px; line-height: 1.5; word-break: break-word; }
+        .htmos-dialog-footer { padding: 12px 18px; background: var(--toolbar-bg); border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; }
+        .htmos-dialog-btn { padding: 7px 18px; background: #0078D7; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 12px; transition: background 0.15s; }
+        .htmos-dialog-btn:hover { background: #005a9e; }
+
+        .bsod-screen { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #0078D7; color: white; z-index: 999999; display: none; flex-direction: column; padding: 80px; font-family: 'Segoe UI', sans-serif; user-select: none; }
+        .bsod-screen h1 { font-size: 80px; font-weight: 300; margin-bottom: 20px; }
+        .bsod-screen p { font-size: 22px; line-height: 1.6; max-width: 800px; }
+        .bsod-screen .restart-btn-container { margin-top: 40px; }
+        .bsod-restart-btn { padding: 12px 28px; background: white; color: #0078D7; border: none; border-radius: 6px; font-size: 16px; font-weight: 600; cursor: pointer; transition: background 0.15s; }
+        .bsod-restart-btn:hover { background: #f0f0f0; }
+
+        .context-menu { position: absolute; width: 160px; background: var(--window-bg); backdrop-filter: blur(15px); border: 1px solid var(--border-color); box-shadow: 0 8px 20px rgba(0,0,0,0.15); border-radius: 8px; display: none; flex-direction: column; z-index: 9999; padding: 6px 0; color: var(--text-color); }
+        .context-menu-item { padding: 9px 14px; font-size: 13px; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 10px; }
+        .context-menu-item:hover { background: #0078D7; color: white; }
+
+        #html-runner-frame { width: 100%; height: 100%; border: none; flex: 1; }
+    </style>
+</head>
+<body>
+
+    <div class="bsod-screen" id="bsod-screen">
+        <h1>:(</h1>
+        <p>Your HTMOS PC ran into a problem because a critical system file was modified or deleted. We're clearing unstable app components, and then you can restart when you're ready.</p>
+        <p style="margin-top: 20px; font-family: monospace;" id="bsod-error-code">Stop Code: CRITICAL_PROCESS_DIED</p>
+        <div class="restart-btn-container">
+            <button class="bsod-restart-btn" onclick="dismissBSODAndReboot()">Restart System Now</button>
+        </div>
+    </div>
+
+    <div class="desktop" id="desktop-grid">
+        <div class="window" id="win-terminal">
+            <div class="title-bar" onmousedown="startWindowDrag(event, 'win-terminal')">
+                <span>Terminal (Command Prompt)</span>
+                <div class="window-controls">
+                    <button onclick="minimizeWindow('win-terminal')">🗕</button>
+                    <button onclick="toggleMaximize('win-terminal')">🗖</button>
+                    <button class="close-btn" onclick="closeWindow('win-terminal')">✕</button>
+                </div>
+            </div>
+            <div class="window-content">
+                <div class="terminal-body" id="terminal-screen" onclick="focusTerminalInput()">
+                    <div class="terminal-output" id="terminal-banner">HTMOS Command Shell</div>
+                    <div class="terminal-output">Type 'help' for a list of available system commands.<br><br></div>
+                    <div id="terminal-history"></div>
+                    <div class="terminal-input-line">
+                        <span class="terminal-prompt">C:\HTMOS&gt;</span>
+                        <input type="text" id="terminal-input" class="terminal-input" autofocus onkeydown="handleTerminalKey(event)">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="window" id="win-store">
+            <div class="title-bar" onmousedown="startWindowDrag(event, 'win-store')">
+                <span>App Store</span>
+                <div class="window-controls">
+                    <button onclick="minimizeWindow('win-store')">🗕</button>
+                    <button onclick="toggleMaximize('win-store')">🗖</button>
+                    <button class="close-btn" onclick="closeWindow('win-store')">✕</button>
+                </div>
+            </div>
+            <div class="window-content">
+                <div class="store-header">
+                    <h3 id="store-total-apps">Total apps: Loading...</h3>
+                    <button class="install-btn" style="padding: 5px 12px; font-size: 12px;" onclick="fetchAppStore()">🔄 Refresh</button>
+                </div>
+                <div class="store-body" id="store-app-list"></div>
+            </div>
+        </div>
+
+        <div class="window" id="win-settings" style="width: 740px; height: 560px;">
+            <div class="title-bar" onmousedown="startWindowDrag(event, 'win-settings')">
+                <span>Settings</span>
+                <div class="window-controls">
+                    <button onclick="minimizeWindow('win-settings')">🗕</button>
+                    <button onclick="toggleMaximize('win-settings')">🗖</button>
+                    <button class="close-btn" onclick="closeWindow('win-settings')">✕</button>
+                </div>
+            </div>
+            <div class="window-content">
+                <div class="settings-container">
+                    <div class="settings-section">
+                        <h4>🎨 System Appearance</h4>
+                        <p style="font-size: 12px; opacity: 0.7;">Switch between light and dark modes:</p>
+                        <div style="display: flex; gap: 10px; margin-top: 4px;">
+                            <button class="install-btn" onclick="setTheme('light')">☀️ Light Mode</button>
+                            <button class="install-btn" style="background: #333;" onclick="setTheme('dark')">🌙 Dark Mode</button>
+                        </div>
+                    </div>
+                    <div class="settings-section">
+                        <h4>🔊 System Sound & Performance Preferences</h4>
+                        <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 4px;">
+                            <label style="font-size: 13px; display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                <input type="checkbox" id="setting-sound" checked onchange="saveSettingsToggles()"> Enable UI Click & Notification Sounds
+                            </label>
+                            <label style="font-size: 13px; display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                <input type="checkbox" id="setting-animations" checked onchange="saveSettingsToggles()"> Enable Window Animation Effects
+                            </label>
+                        </div>
+                    </div>
+                    <div class="settings-section">
+                        <h4>💾 High-Capacity System Storage (IndexedDB)</h4>
+                        <p style="font-size: 12px; opacity: 0.7;">HTMOS file system is powered by high-capacity browser database storage:</p>
+                        <div style="margin-top: 6px;">
+                            <div style="display: flex; justify-content: space-between; font-size: 12px; font-weight: 500; margin-bottom: 6px;">
+                                <span id="storage-used-text">Storage status: Active & Expanded</span>
+                                <span>Limit: Uncapped (Disk Space)</span>
+                            </div>
+                            <div style="width: 100%; height: 10px; background: var(--border-color); border-radius: 5px; overflow: hidden; display: flex;">
+                                <div id="storage-bar-fill" style="width: 0%; background: #28a745; transition: width 0.3s;"></div>
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 10px; margin-top: 12px;">
+                            <button class="install-btn" style="background: #6c757d;" onclick="updateStorageMeter()">🔄 Refresh Meter</button>
+                        </div>
+                    </div>
+                    <div class="settings-section">
+                        <h4>💻 About This PC</h4>
+                        <p style="font-size: 13px;" id="about-ram-info">Checking system hardware...</p>
+                    </div>
+                    <div class="settings-section">
+                        <h4>🖼️ Desktop Background</h4>
+                        <p style="font-size: 12px; opacity: 0.7; margin-bottom: 4px;">Choose a built-in wallpaper preset or paste a custom image URL:</p>
+                        <div class="wallpaper-presets">
+                            <div class="wallpaper-thumb" style="background: radial-gradient(circle at center, #1a73e8, #0d47a1);" onclick="setPresetWallpaper('radial-gradient(circle at center, #1a73e8, #0d47a1)')" title="Blue Gradient"></div>
+                            <div class="wallpaper-thumb" style="background: radial-gradient(circle at center, #8e44ad, #2c3e50);" onclick="setPresetWallpaper('radial-gradient(circle at center, #8e44ad, #2c3e50)')" title="Purple Dusk"></div>
+                            <div class="wallpaper-thumb" style="background: radial-gradient(circle at center, #11998e, #38ef7d);" onclick="setPresetWallpaper('radial-gradient(circle at center, #11998e, #38ef7d)')" title="Emerald Green"></div>
+                            <div class="wallpaper-thumb" style="background: url('https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800') center/cover;" onclick="setPresetWallpaper('url(\'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800\') no-repeat center center fixed')" title="Tropical Beach"></div>
+                            <div class="wallpaper-thumb" style="background: url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=800') center/cover;" onclick="setPresetWallpaper('url(\'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=800\') no-repeat center center fixed')" title="Outer Space"></div>
+                            <div class="wallpaper-thumb" style="background: url('https://images.unsplash.com/photo-1534447677768-be436bb09401?w=800') center/cover;" onclick="setPresetWallpaper('url(\'https://images.unsplash.com/photo-1534447677768-be436bb09401?w=800\') no-repeat center center fixed')" title="Aurora Borealis"></div>
+                        </div>
+                        <div style="display: flex; gap: 10px; margin-top: 8px;">
+                            <input type="text" id="bg-url-input" placeholder="https://example.com/image.jpg">
+                            <button class="install-btn" onclick="changeWallpaper()">Apply URL</button>
+                        </div>
+                    </div>
+                    <div class="settings-section">
+                        <h4>📦 Manage Installed Apps</h4>
+                        <p style="font-size: 12px; opacity: 0.7;">Uninstall apps from your desktop shortcuts:</p>
+                        <div class="settings-installed-list" id="settings-installed-list"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="window" id="win-installer" style="width: 500px; height: 360px;">
+            <div class="title-bar" onmousedown="startWindowDrag(event, 'win-installer')">
+                <span id="installer-title">App Installer Wizard</span>
+                <div class="window-controls">
+                    <button class="close-btn" onclick="closeWindow('win-installer')">✕</button>
+                </div>
+            </div>
+            <div class="window-content">
+                <div class="installer-container" id="installer-body"></div>
+            </div>
+        </div>
+
+        <div class="window" id="win-notepad">
+            <div class="title-bar" onmousedown="startWindowDrag(event, 'win-notepad')">
+                <span>Notepad</span>
+                <div class="window-controls">
+                    <button onclick="minimizeWindow('win-notepad')">🗕</button>
+                    <button onclick="toggleMaximize('win-notepad')">🗖</button>
+                    <button class="close-btn" onclick="closeWindow('win-notepad')">✕</button>
+                </div>
+            </div>
+            <div class="window-content">
+                <div class="notepad-toolbar">
+                    <input type="text" id="filename-input" placeholder="filename.txdm or filename.html">
+                    <button onclick="saveFile()">Save & Apply Changes</button>
+                </div>
+                <textarea id="notepad-text" placeholder="Type your text or edit system files here..."></textarea>
+            </div>
+        </div>
+
+        <div class="window" id="win-explorer">
+            <div class="title-bar" onmousedown="startWindowDrag(event, 'win-explorer')">
+                <span>File Explorer</span>
+                <div class="window-controls">
+                    <button onclick="minimizeWindow('win-explorer')">🗕</button>
+                    <button onclick="toggleMaximize('win-explorer')">🗖</button>
+                    <button class="close-btn" onclick="closeWindow('win-explorer')">✕</button>
+                </div>
+            </div>
+            <div class="window-content" id="explorer-body">
+                <div class="explorer-grid" id="explorer-content"
+                     ondragover="handleDragOver(event)"
+                     ondragleave="handleDragLeave(event)"
+                     ondrop="handleFileDrop(event)">
+                </div>
+            </div>
+        </div>
+
+        <div class="window" id="win-html-runner">
+            <div class="title-bar" onmousedown="startWindowDrag(event, 'win-html-runner')">
+                <span id="runner-title">App Runner</span>
+                <div class="window-controls">
+                    <button onclick="minimizeWindow('win-html-runner')">🗕</button>
+                    <button onclick="toggleMaximize('win-html-runner')">🗖</button>
+                    <button class="close-btn" onclick="closeWindow('win-html-runner')">✕</button>
+                </div>
+            </div>
+            <div class="window-content">
+                <iframe id="html-runner-frame"></iframe>
+            </div>
+        </div>
+    </div>
+
+    <div class="start-menu" id="start-menu">
+        <h3 id="start-menu-title">HTMOS</h3>
+        <p>System operating normally.</p>
+    </div>
+
+    <div class="context-menu" id="file-context-menu">
+        <div class="context-menu-item" onclick="menuRename()">✏️ Rename</div>
+        <div class="context-menu-item" onclick="menuDelete()" style="color: #e81123;">🗑️ Delete</div>
+    </div>
+
+    <div class="htmos-dialog-overlay" id="htmos-dialog-overlay">
+        <div class="htmos-dialog-box">
+            <div class="htmos-dialog-header" id="htmos-dialog-title">HTMOS Notification</div>
+            <div class="htmos-dialog-body" id="htmos-dialog-message">Alert message goes here...</div>
+            <div class="htmos-dialog-footer" id="htmos-dialog-footer">
+                <button class="htmos-dialog-btn" onclick="closeHtmosAlert()">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="taskbar">
+        <div class="taskbar-icons">
+            <button class="icon-btn" onclick="toggleStartMenu()" title="Start">🪟</button>
+            <button class="icon-btn" onclick="openWindow('win-terminal')" title="Terminal">💻</button>
+            <button class="icon-btn" onclick="openStore()" title="App Store">🛒</button>
+            <button class="icon-btn" onclick="openSettings()" title="Settings">⚙️</button>
+            <button class="icon-btn" onclick="openExplorer()" title="File Explorer">📁</button>
+            <button class="icon-btn" onclick="openNotepad()" title="Notepad">📝</button>
+        </div>
+    </div>
+
+    <script>
+        let defaultFileSystem = {
+            "kernel.dll": "[CRITICAL] Core operating system kernel process. DO NOT DELETE OR CORRUPT.",
+            "explorer.sys": "[CRITICAL] Graphical shell and file manager driver module.",
+            "startmenu.cfg": "[FUNCTIONAL] Configuration layout for Start Menu components.",
+            "versioninfo.vif": "Version name:HTMOS Alpha\nVersion number:1.1\nVersion code:HvdneLD23.1\n\n[end]",
+            "welcome.txdm": "Welcome to HTMOS! Try editing critical system files in Notepad and changing their text to see what happens when you save.",
+            "myapp.html": "<html>\n<body style='background: lightblue; font-family: sans-serif;'>\n  <h2>Hello World!</h2>\n  <button onclick='parent.htmosAlert(\"It works!\")'>Click Me</button>\n</body>\n</html>"
+        };
+
+        let fileSystem = {};
+        let installedShortcuts = JSON.parse(localStorage.getItem('htmos_shortcuts')) || [];
+        let sessionAppCache = {};
+
+        let topZIndex = 10;
+        let selectedFile = null;
+        let currentConfirmCallback = null;
+
+        let db;
+        function initDatabase() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open("HTMOS_DB", 1);
+                request.onerror = (event) => reject(event.target.error);
+                request.onsuccess = (event) => {
+                    db = event.target.result;
+                    resolve(db);
+                };
+                request.onupgradeneeded = (event) => {
+                    let database = event.target.result;
+                    if (!database.objectStoreNames.contains("filesystem")) {
+                        database.createObjectStore("filesystem");
+                    }
+                };
+            });
+        }
+
+        function dbGet(key) {
+            return new Promise((resolve, reject) => {
+                let transaction = db.transaction(["filesystem"], "readonly");
+                let store = transaction.objectStore("filesystem");
+                let request = store.get(key);
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        function dbSet(key, value) {
+            return new Promise((resolve, reject) => {
+                let transaction = db.transaction(["filesystem"], "readwrite");
+                let store = transaction.objectStore("filesystem");
+                let request = store.put(value, key);
+                request.onsuccess = () => resolve();
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        window.addEventListener('DOMContentLoaded', async () => {
+            try {
+                await initDatabase();
+                let savedFs = await dbGet("htmos_filesystem");
+                if (savedFs) {
+                    fileSystem = savedFs;
+                } else {
+                    fileSystem = defaultFileSystem;
+                    await dbSet("htmos_filesystem", fileSystem);
+                }
+            } catch (e) {
+                fileSystem = defaultFileSystem;
+            }
+
+            const savedWallpaper = localStorage.getItem('htmos_wallpaper');
+            if (savedWallpaper) applyWallpaperStyle(savedWallpaper);
+
+            const savedTheme = localStorage.getItem('htmos_theme');
+            if (savedTheme === 'dark') document.body.classList.add('dark-theme');
+
+            const soundEnabled = localStorage.getItem('htmos_sound');
+            if (soundEnabled !== null) document.getElementById('setting-sound').checked = (soundEnabled === 'true');
+
+            const animEnabled = localStorage.getItem('htmos_animations');
+            if (animEnabled !== null) document.getElementById('setting-animations').checked = (animEnabled === 'true');
+
+            restoreInstalledShortcuts();
+            updateDynamicSystemTitles();
+        });
+
+        window.addEventListener("message", async (event) => {
+            if (event.data && event.data.action === "IMPORT_FILE_TO_HTMOS") {
+                const { filename, content } = event.data;
+                
+                fileSystem[filename] = content;
+                await dbSet("htmos_filesystem", fileSystem);
+                
+                const explorerWin = document.getElementById('win-explorer');
+                if (explorerWin && explorerWin.classList.contains('show')) {
+                    renderFiles();
+                }
+
+                htmosAlert(`Successfully imported "${filename}" into HTMOS storage!`);
+            }
+        });
+
+        function parseSystemVersions() {
+            const vifContent = fileSystem["versioninfo.vif"] || "";
+            let lines = vifContent.split(/\r?\n/);
+            
+            let versionsList = [];
+            let currentName = null;
+            let currentNumber = null;
+            let currentCode = null;
+
+            for (let line of lines) {
+                line = line.trim();
+                if (line.startsWith("Version name:")) {
+                    currentName = line.replace("Version name:", "").trim();
+                } else if (line.startsWith("Version number:")) {
+                    currentNumber = line.replace("Version number:", "").trim();
+                } else if (line.startsWith("Version code:")) {
+                    currentCode = line.replace("Version code:", "").trim();
+                    if (currentName && currentNumber && currentCode) {
+                        versionsList.push({ name: currentName, number: parseFloat(currentNumber), code: currentCode });
+                        currentName = null;
+                        currentNumber = null;
+                        currentCode = null;
+                    }
+                }
+            }
+            return versionsList;
+        }
+
+        function parseSystemVersionName() {
+            const targetCode = "HvdneLD23.1";
+            const versions = parseSystemVersions();
+            const found = versions.find(v => v.code === targetCode);
+            return found ? found.name : "HTMOS Operating System";
+        }
+
+        function getCurrentSystemVersionNumber() {
+            const targetCode = "HvdneLD23.1";
+            const versions = parseSystemVersions();
+            const found = versions.find(v => v.code === targetCode);
+            return found ? found.number : 1.1;
+        }
+
+        function isVersionCompatible(requiredVersionStr) {
+            if (!requiredVersionStr) return true;
+            
+            const currentVersionNum = getCurrentSystemVersionNumber();
+            const requiredNum = parseFloat(requiredVersionStr);
+
+            if (isNaN(requiredNum)) {
+                return true;
+            }
+
+            return currentVersionNum >= requiredNum;
+        }
+
+        function updateDynamicSystemTitles() {
+            const resolvedName = parseSystemVersionName();
+            const banner = document.getElementById('terminal-banner');
+            if (banner) {
+                banner.innerText = `${resolvedName} Command Shell [Version Code: HvdneLD23.1]`;
+            }
+            const startMenuTitle = document.getElementById('start-menu-title');
+            if (startMenuTitle) {
+                startMenuTitle.innerText = resolvedName;
+            }
+        }
+
+        function applyWallpaperStyle(styleStr) {
+            if (styleStr.startsWith('url(')) {
+                document.body.style.background = styleStr;
+                document.body.style.backgroundSize = "cover";
+            } else {
+                document.body.style.background = styleStr;
+            }
+        }
+
+        function setTheme(mode) {
+            if (mode === 'dark') {
+                document.body.classList.add('dark-theme');
+                localStorage.setItem('htmos_theme', 'dark');
+            } else {
+                document.body.classList.remove('dark-theme');
+                localStorage.setItem('htmos_theme', 'light');
+            }
+        }
+
+        function saveSettingsToggles() {
+            const sound = document.getElementById('setting-sound').checked;
+            const animations = document.getElementById('setting-animations').checked;
+            localStorage.setItem('htmos_sound', sound);
+            localStorage.setItem('htmos_animations', animations);
+        }
+
+        function focusTerminalInput() {
+            document.getElementById('terminal-input').focus();
+        }
+
+        function handleTerminalKey(e) {
+            if (e.key === 'Enter') {
+                const inputEl = document.getElementById('terminal-input');
+                const command = inputEl.value.trim();
+                inputEl.value = "";
+
+                const history = document.getElementById('terminal-history');
+                const cmdLine = document.createElement('div');
+                cmdLine.className = 'terminal-output';
+                cmdLine.innerHTML = `<span class="terminal-prompt">C:\HTMOS&gt;</span> ${escapeHtml(command)}`;
+                history.appendChild(cmdLine);
+
+                processCommand(command, history);
+                const screen = document.getElementById('terminal-screen');
+                screen.scrollTop = screen.scrollHeight;
+            }
+        }
+
+        function processCommand(cmd, historyContainer) {
+            const parts = cmd.split(' ');
+            const mainCmd = parts[0].toLowerCase();
+            const arg1 = parts[1];
+            const arg2 = parts.slice(2).join(' ');
+            let response = "";
+
+            if (mainCmd === "") {
+                return;
+            } else if (mainCmd === "help") {
+                response = "Available HTMOS Commands:\n  help          - Displays this help menu\n  dir           - Lists files in the virtual file system\n  cls / clear   - Clears the terminal screen\n  echo [text]   - Prints text to the screen\n  date          - Displays current system date and time\n  ver           - Displays OS version info from versioninfo.vif\n  cat [file]    - Displays contents of a file\n  mkdir [name]  - Creates a new empty text file\n  del [file]    - Deletes a file (WARNING: may cause crashes!)";
+            } else if (mainCmd === "cls" || mainCmd === "clear") {
+                historyContainer.innerHTML = "";
+                return;
+            } else if (mainCmd === "dir") {
+                let fileList = Object.keys(fileSystem).join("    ");
+                response = fileList ? `Directory of C:\\HTMOS\n\n${fileList}` : "Directory is empty.";
+            } else if (mainCmd === "echo") {
+                response = parts.slice(1).join(' ') || "";
+            } else if (mainCmd === "date") {
+                response = new Date().toString();
+            } else if (mainCmd === "ver") {
+                let foundName = parseSystemVersionName();
+                response = `${foundName} [Code: HvdneLD23.1]`;
+            } else if (mainCmd === "cat") {
+                if (!arg1) response = "Usage: cat [filename]";
+                else if (fileSystem[arg1] !== undefined) response = fileSystem[arg1];
+                else response = `File not found: ${arg1}`;
+            } else if (mainCmd === "mkdir") {
+                if (!arg1) {
+                    response = "Usage: mkdir [filename]";
+                } else {
+                    let fname = arg1.includes('.') ? arg1 : arg1 + ".txdm";
+                    fileSystem[fname] = arg2 || "New empty document created via terminal.";
+                    saveState();
+                    response = `File '${fname}' added successfully.`;
+                }
+            } else if (mainCmd === "del") {
+                if (!arg1) response = "Usage: del [filename]";
+                else if (fileSystem[arg1] !== undefined) {
+                    deleteFileWithConsequences(arg1);
+                    return;
+                } else {
+                    response = `File not found: ${arg1}`;
+                }
+            } else {
+                response = `'${mainCmd}' is not recognized as an internal or external command. Type 'help'.`;
+            }
+
+            const resDiv = document.createElement('div');
+            resDiv.className = 'terminal-output';
+            resDiv.style.opacity = "0.9";
+            resDiv.innerHTML = response.replace(/\n/g, '<br>');
+            historyContainer.appendChild(resDiv);
+        }
+
+        function escapeHtml(text) {
+            return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        }
+
+        async function deleteFileWithConsequences(filename) {
+            delete fileSystem[filename];
+            await saveState();
+
+            if (filename === "kernel.dll") {
+                triggerBSOD("CRITICAL_PROCESS_DIED: kernel.dll was deleted.");
+            } else if (filename === "explorer.sys") {
+                triggerBSOD("SHELL_EXCEPTION: explorer.sys subsystem was deleted.");
+            } else if (filename === "startmenu.cfg") {
+                htmosAlert("Warning: startmenu.cfg was deleted. The Start Menu configuration has been corrupted and will no longer open!");
+            } else if (filename === "versioninfo.vif") {
+                htmosAlert("Warning: versioninfo.vif was deleted. System version queries will fall back to default fallback strings.");
+                updateDynamicSystemTitles();
+            } else {
+                htmosAlert(`File '${filename}' deleted successfully.`);
+            }
+
+            if (document.getElementById('win-explorer').classList.contains('show')) {
+                renderFiles();
+            }
+        }
+
+        function checkFileEditConsequences(filename, newContent) {
+            if (filename === "kernel.dll" && (!newContent.includes("[CRITICAL]") || newContent.length < 10)) {
+                triggerBSOD("CORRUPT_KERNEL_IMAGE: kernel.dll structural integrity failure.");
+            } else if (filename === "explorer.sys" && (!newContent.includes("[CRITICAL]") || newContent.length < 10)) {
+                triggerBSOD("DESKTOP_WINDOW_MANAGER_CRASH: explorer.sys modified incorrectly.");
+            } else if (filename === "startmenu.cfg" && !newContent.includes("[FUNCTIONAL]")) {
+                htmosAlert("Warning: startmenu.cfg was corrupted via Notepad editing! Start Menu configuration is now broken.");
+            } else if (filename === "versioninfo.vif") {
+                updateDynamicSystemTitles();
+            }
+        }
+
+        function triggerBSOD(errorCode) {
+            installedShortcuts = [];
+            sessionAppCache = {};
+            localStorage.removeItem('htmos_shortcuts');
+
+            document.getElementById('bsod-error-code').innerText = `Stop Code: ${errorCode}`;
+            document.getElementById('bsod-screen').style.display = 'flex';
+        }
+
+        function dismissBSODAndReboot() {
+            document.getElementById('bsod-screen').style.display = 'none';
+            fileSystem["kernel.dll"] = defaultFileSystem["kernel.dll"];
+            fileSystem["explorer.sys"] = defaultFileSystem["explorer.sys"];
+            fileSystem["versioninfo.vif"] = defaultFileSystem["versioninfo.vif"];
+            saveState();
+            location.reload();
+        }
+
+        function htmosAlert(message) {
+            document.getElementById('htmos-dialog-title').innerText = "HTMOS Notification";
+            document.getElementById('htmos-dialog-message').innerText = message;
+            document.getElementById('htmos-dialog-footer').innerHTML = `
+                <button class="htmos-dialog-btn" onclick="closeHtmosAlert()">OK</button>
+            `;
+            currentConfirmCallback = null;
+            document.getElementById('htmos-dialog-overlay').style.display = 'flex';
+        }
+
+        function htmosConfirm(message, callback) {
+            document.getElementById('htmos-dialog-title').innerText = "HTMOS Confirmation";
+            document.getElementById('htmos-dialog-message').innerText = message;
+            document.getElementById('htmos-dialog-footer').innerHTML = `
+                <button class="htmos-dialog-btn" style="background: #e0e0e0; color: #333; margin-right: 8px;" onclick="resolveConfirm(false)">Cancel</button>
+                <button class="htmos-dialog-btn" onclick="resolveConfirm(true)">OK</button>
+            `;
+            currentConfirmCallback = callback;
+            document.getElementById('htmos-dialog-overlay').style.display = 'flex';
+        }
+
+        function closeHtmosAlert() {
+            document.getElementById('htmos-dialog-overlay').style.display = 'none';
+            currentConfirmCallback = null;
+        }
+
+        function resolveConfirm(result) {
+            document.getElementById('htmos-dialog-overlay').style.display = 'none';
+            if (currentConfirmCallback) {
+                currentConfirmCallback(result);
+                currentConfirmCallback = null;
+            }
+        }
+
+        async function saveState() {
+            await dbSet("htmos_filesystem", fileSystem);
+            const cleanShortcuts = installedShortcuts.map(s => ({
+                name: s.name,
+                sourceFile: s.sourceFile,
+                iconUrl: s.iconUrl,
+                desktop: s.desktop
+            }));
+            localStorage.setItem('htmos_shortcuts', JSON.stringify(cleanShortcuts));
+        }
+
+        async function restoreInstalledShortcuts() {
+            for (let shortcut of installedShortcuts) {
+                if (shortcut.desktop) renderDesktopShortcut(shortcut);
+            }
+        }
+
+        function openWindow(id) {
+            const win = document.getElementById(id);
+            win.classList.add('show');
+            topZIndex++;
+            win.style.zIndex = topZIndex;
+        }
+
+        function closeWindow(id) {
+            document.getElementById(id).classList.remove('show');
+        }
+
+        function minimizeWindow(id) {
+            document.getElementById(id).classList.remove('show');
+        }
+
+        function toggleMaximize(id) {
+            const win = document.getElementById(id);
+            win.classList.toggle('maximized');
+            topZIndex++;
+            win.style.zIndex = topZIndex;
+        }
+
+        function startWindowDrag(e, id) {
+            if (e.target.tagName === 'BUTTON') return;
+            const win = document.getElementById(id);
+            if (win.classList.contains('maximized')) return;
+
+            topZIndex++;
+            win.style.zIndex = topZIndex;
+
+            let startX = e.clientX;
+            let startY = e.clientY;
+            let rect = win.getBoundingClientRect();
+            let initialLeft = rect.left;
+            let initialTop = rect.top;
+
+            function onMouseMove(moveEvent) {
+                let dx = moveEvent.clientX - startX;
+                let dy = moveEvent.clientY - startY;
+                win.style.left = (initialLeft + dx) + 'px';
+                win.style.top = (initialTop + dy) + 'px';
+            }
+
+            function onMouseUp() {
+                window.removeEventListener('mousemove', onMouseMove);
+                window.removeEventListener('mouseup', onMouseUp);
+            }
+
+            window.addEventListener('mousemove', onMouseMove);
+            window.addEventListener('mouseup', onMouseUp);
+        }
+
+        document.querySelectorAll('.window').forEach(win => {
+            win.addEventListener('mousedown', () => {
+                topZIndex++;
+                win.style.zIndex = topZIndex;
+            });
+        });
+
+        function toggleStartMenu() {
+            if (fileSystem["startmenu.cfg"] === undefined || !fileSystem["startmenu.cfg"].includes("[FUNCTIONAL]")) {
+                htmosAlert("Error: Start Menu configuration file (startmenu.cfg) is missing or corrupted. Feature disabled.");
+                return;
+            }
+            const menu = document.getElementById('start-menu');
+            menu.classList.toggle('show');
+        }
+
+        document.addEventListener('click', (e) => {
+            const menu = document.getElementById('start-menu');
+            const startBtn = e.target.closest('button');
+            if (!menu.contains(e.target) && (!startBtn || startBtn.title !== 'Start')) {
+                menu.classList.remove('show');
+            }
+        });
+
+        function openSettings() {
+            updateAboutRamInfo();
+            updateStorageMeter();
+            renderSettingsAppList();
+            openWindow('win-settings');
+        }
+
+        async function updateStorageMeter() {
+            const usedText = document.getElementById('storage-used-text');
+            const fillBar = document.getElementById('storage-bar-fill');
+
+            if (navigator.storage && navigator.storage.estimate) {
+                try {
+                    const estimate = await navigator.storage.estimate();
+                    const usedBytes = estimate.usage || 0;
+                    const quotaBytes = estimate.quota || 1;
+
+                    const usedMB = (usedBytes / (1024 * 1024)).toFixed(2);
+                    const quotaGB = (quotaBytes / (1024 * 1024 * 1024)).toFixed(2);
+                    const percentage = Math.min(Math.round((usedBytes / quotaBytes) * 100), 100);
+
+                    usedText.innerText = `Storage used: ${usedMB} MB of ~${quotaGB} GB (${percentage}%)`;
+                    fillBar.style.width = `${percentage}%`;
+
+                    if (percentage > 85) {
+                        fillBar.style.background = "#e81123";
+                    } else if (percentage > 60) {
+                        fillBar.style.background = "#ff8c00";
+                    } else {
+                        fillBar.style.background = "#28a745";
+                    }
+                } catch (error) {
+                    usedText.innerText = "Storage status: Active (IndexedDB Uncapped)";
+                    fillBar.style.width = "100%";
+                }
+            } else {
+                usedText.innerText = "Storage status: Active (IndexedDB Uncapped)";
+                fillBar.style.width = "100%";
+            }
+        }
+
+        function updateAboutRamInfo() {
+            const ramElement = document.getElementById('about-ram-info');
+            const deviceRam = navigator.deviceMemory;
+            if (deviceRam) {
+                ramElement.innerHTML = `Assigned Browser Device RAM: <b>~${deviceRam} GB</b>`;
+            } else {
+                ramElement.innerHTML = `Assigned Browser Device RAM: <b>Unavailable or restricted</b>`;
+            }
+        }
+
+        function setPresetWallpaper(styleValue) {
+            applyWallpaperStyle(styleValue);
+            localStorage.setItem('htmos_wallpaper', styleValue);
+            htmosAlert("Desktop wallpaper updated successfully!");
+        }
+
+        function changeWallpaper() {
+            const url = document.getElementById('bg-url-input').value.trim();
+            if (!url) { htmosAlert("Please enter a valid image URL!"); return; }
+            const fullStyle = `url('${url}') no-repeat center center fixed`;
+            applyWallpaperStyle(fullStyle);
+            localStorage.setItem('htmos_wallpaper', fullStyle);
+            htmosAlert("Desktop wallpaper updated successfully!");
+        }
+
+        function renderSettingsAppList() {
+            const listContainer = document.getElementById('settings-installed-list');
+            listContainer.innerHTML = "";
+
+            if (installedShortcuts.length === 0) {
+                listContainer.innerHTML = "<p style='font-size: 12px; opacity: 0.7;'>No apps installed yet.</p>";
+                return;
+            }
+
+            installedShortcuts.forEach((app, index) => {
+                const row = document.createElement('div');
+                row.className = 'settings-app-row';
+                row.innerHTML = `
+                    <span style="font-size: 13px; font-weight: 500;">${app.name}</span>
+                    <button class="uninstall-btn" onclick="uninstallApp(${index})">Uninstall</button>
+                `;
+                listContainer.appendChild(row);
+            });
+        }
+
+        async function uninstallApp(index) {
+            const app = installedShortcuts[index];
+            htmosConfirm(`Are you sure you want to uninstall ${app.name}?`, async (confirmed) => {
+                if (confirmed) {
+                    installedShortcuts.splice(index, 1);
+                    await saveState();
+                    refreshUIElements();
+                    renderSettingsAppList();
+                    htmosAlert(`${app.name} has been uninstalled.`);
+                }
+            });
+        }
+
+        function refreshUIElements() {
+            document.querySelectorAll('.desktop-shortcut').forEach(el => el.remove());
+            installedShortcuts.forEach(shortcut => {
+                if (shortcut.desktop) renderDesktopShortcut(shortcut);
+            });
+        }
+
+        function openStore() {
+            fetchAppStore();
+            openWindow('win-store');
+        }
+
+        async function fetchAppStore() {
+            const container = document.getElementById('store-app-list');
+            const totalText = document.getElementById('store-total-apps');
+            container.innerHTML = "<p style='opacity: 0.7;'>Connecting to explorerT7/HTMOS-Appstore...</p>";
+
+            const rawUrls = [
+                "https://raw.githubusercontent.com/explorerT7/HTMOS-Appstore/main/aplist.aaldf",
+                "https://corsproxy.io/?https://raw.githubusercontent.com/explorerT7/HTMOS-Appstore/main/aplist.aaldf"
+            ];
+
+            let textData = null;
+            for (let url of rawUrls) {
+                try {
+                    const response = await fetch(url);
+                    if (response.ok) {
+                        textData = await response.text();
+                        break;
+                    }
+                } catch (e) {
+                    // Try alternative route
+                }
+            }
+
+            if (!textData) {
+                container.innerHTML = "<p style='color: red;'>Failed to load aplist.aaldf from GitHub repository.</p>";
+                totalText.innerText = "Total apps: 0";
+                return;
+            }
+
+            parseAndDisplayStore(textData);
+        }
+
+        let storeAppsCache = [];
+
+        function parseAndDisplayStore(data) {
+            const container = document.getElementById('store-app-list');
+            const totalText = document.getElementById('store-total-apps');
+            container.innerHTML = "";
+
+            const lines = data.split(/\r?\n/);
+            let totalCount = "0";
+            let rawAppsList = [];
+            let currentApp = null;
+
+            for (let rawLine of lines) {
+                let line = rawLine.trim();
+                if (!line) continue;
+
+                if (line.startsWith("Total apps:")) {
+                    totalCount = line.replace("Total apps:", "").trim();
+                } else if (line.startsWith("App name:")) {
+                    if (currentApp && currentApp.name) rawAppsList.push(currentApp);
+                    currentApp = { name: line.replace("App name:", "").trim() };
+                } else {
+                    if (!currentApp) currentApp = { name: "Unnamed App" };
+                    if (line.startsWith("App release date:")) {
+                        currentApp.releaseDate = line.replace("App release date:", "").trim();
+                    } else if (line.startsWith("App latest update date:")) {
+                        currentApp.updateDate = line.replace("App latest update date:", "").trim();
+                    } else if (line.startsWith("App source html name:")) {
+                        currentApp.sourceFile = line.replace("App source html name:", "").trim();
+                    } else if (line.startsWith("App icon file name:")) {
+                        currentApp.iconFile = line.replace("App icon file name:", "").trim();
+                    } else if (line.startsWith("App publisher:")) {
+                        currentApp.publisher = line.replace("App publisher:", "").trim();
+                    } else if (line.startsWith("Oldest supported version:")) {
+                        currentApp.oldestVersion = line.replace("Oldest supported version:", "").trim();
+                    }
+                }
+            }
+            if (currentApp && currentApp.name) rawAppsList.push(currentApp);
+
+            storeAppsCache = rawAppsList.filter(app => isVersionCompatible(app.oldestVersion));
+
+            totalText.innerText = `Total apps: ${storeAppsCache.length}`;
+
+            if (storeAppsCache.length === 0) {
+                container.innerHTML = "<p style='opacity: 0.7;'>No compatible apps found for this system version.</p>";
+                return;
+            }
+
+            const allSystemVersions = parseSystemVersions();
+
+            storeAppsCache.forEach((app, index) => {
+                const card = document.createElement('div');
+                card.className = 'app-card';
+                
+                let iconHtml = `<div class="store-icon-placeholder">📦</div>`;
+                if (app.iconFile && app.iconFile.endsWith('.png')) {
+                    const iconUrl = `https://raw.githubusercontent.com/explorerT7/HTMOS-Appstore/main/${app.iconFile}`;
+                    iconHtml = `<img src="${iconUrl}" onerror="this.outerHTML='<div class=\\'store-icon-placeholder\\'>📦</div>'" alt="icon">`;
+                }
+
+                let reqVerDisplay = app.oldestVersion || '1.0';
+                const reqFloat = parseFloat(reqVerDisplay);
+                const matchedV = allSystemVersions.find(v => v.number === reqFloat || v.number.toString() === reqVerDisplay);
+
+                if (matchedV) {
+                    reqVerDisplay = `${matchedV.name} (${matchedV.number})`;
+                } else {
+                    reqVerDisplay = `Version (${reqVerDisplay})`;
+                }
+
+                card.innerHTML = `
+                    <div class="app-card-left">
+                        ${iconHtml}
+                        <div class="app-info">
+                            <h4>${app.name}</h4>
+                            <p>Publisher: <b>${app.publisher || 'Unknown'}</b> | Requires: ${reqVerDisplay}</p>
+                            <p>Released: ${app.releaseDate || 'N/A'} | Updated: ${app.updateDate || 'N/A'}</p>
+                        </div>
+                    </div>
+                    <button class="install-btn" onclick="openInstallerWizard(${index})">Install</button>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function openInstallerWizard(appIndex) {
+            const app = storeAppsCache[appIndex];
+            if (!app) return;
+
+            const installerBody = document.getElementById('installer-body');
+            document.getElementById('installer-title').innerText = `Setup - ${app.name}`;
+
+            installerBody.innerHTML = `
+                <div class="installer-box">
+                    <h4>Installing ${app.name}</h4>
+                    <p style="font-size: 13px; opacity: 0.8;">Choose installation preferences for this application:</p>
+                    <div class="installer-options">
+                        <label><input type="checkbox" id="chk-desktop" checked> Create Desktop Shortcut</label>
+                        <label><input type="checkbox" id="chk-explorer"> Save Source Code to File Manager</label>
+                    </div>
+                </div>
+                <button class="install-btn" style="align-self: flex-end; padding: 8px 20px;" onclick="executeInstallation('${app.name}', '${app.sourceFile || 'app.html'}', '${app.iconFile || ''}')">Complete Installation</button>
+            `;
+
+            openWindow('win-installer');
+        }
+
+        async function executeInstallation(appName, sourceFile, iconFile) {
+            if (!sourceFile.endsWith('.html')) sourceFile += ".html";
+            const appRawUrl = `https://raw.githubusercontent.com/explorerT7/HTMOS-Appstore/main/${sourceFile}`;
+
+            let appCode = "";
+            try {
+                const response = await fetch(appRawUrl);
+                if (!response.ok) throw new Error("App file not found");
+                appCode = await response.text();
+            } catch (error) {
+                appCode = `<html><body style='font-family:sans-serif; text-align:center; padding-top:40px;'><h2>${appName}</h2><p>Installed successfully.</p></body></html>`;
+            }
+
+            const createDesktop = document.getElementById('chk-desktop').checked;
+            const createExplorer = document.getElementById('chk-explorer').checked;
+
+            let iconUrl = "";
+            if (iconFile && iconFile.endsWith('.png')) {
+                iconUrl = `https://raw.githubusercontent.com/explorerT7/HTMOS-Appstore/main/${iconFile}`;
+            }
+
+            if (createExplorer) {
+                fileSystem[sourceFile] = appCode;
+                await saveState();
+            }
+
+            const shortcutData = { name: appName, sourceFile: sourceFile, iconUrl: iconUrl, desktop: createDesktop };
+            installedShortcuts.push(shortcutData);
+            await saveState();
+
+            if (createDesktop) renderDesktopShortcut(shortcutData);
+
+            closeWindow('win-installer');
+            closeWindow('win-store');
+            htmosAlert(`${appName} was installed successfully!`);
+
+            if (document.getElementById('win-explorer').classList.contains('show')) renderFiles();
+        }
+
+        function renderDesktopShortcut(shortcut) {
+            const desktop = document.getElementById('desktop-grid');
+            const shortcutEl = document.createElement('div');
+            shortcutEl.className = 'desktop-shortcut';
+
+            let iconHTML = `<span class="emoji-icon">🌐</span>`;
+            if (shortcut.iconUrl) {
+                iconHTML = `<img src="${shortcut.iconUrl}" onerror="this.outerHTML='<span class=\\'emoji-icon\\'>🌐</span>'" alt="icon">`;
+            }
+
+            shortcutEl.innerHTML = `${iconHTML}<span>${shortcut.name}</span>`;
+            shortcutEl.ondblclick = () => launchAppLive(shortcut.name, shortcut.sourceFile);
+            desktop.appendChild(shortcutEl);
+        }
+
+        async function launchAppLive(appName, sourceFile) {
+            document.getElementById('runner-title').innerText = `${appName} (Loading...)`;
+            openWindow('win-html-runner');
+            const iframe = document.getElementById('html-runner-frame');
+
+            if (sessionAppCache[sourceFile]) {
+                iframe.srcdoc = sessionAppCache[sourceFile];
+                document.getElementById('runner-title').innerText = appName;
+                return;
+            }
+
+            try {
+                const appRawUrl = `https://raw.githubusercontent.com/explorerT7/HTMOS-Appstore/main/${sourceFile}`;
+                const response = await fetch(appRawUrl);
+                if (!response.ok) throw new Error("Could not fetch");
+                const code = await response.text();
+                sessionAppCache[sourceFile] = code;
+                iframe.srcdoc = code;
+            } catch (err) {
+                iframe.srcdoc = `<html><body style="font-family:sans-serif; text-align:center; padding-top:40px;"><h3>Error loading ${appName}</h3></body></html>`;
+            }
+            document.getElementById('runner-title').innerText = appName;
+        }
+
+        function openNotepad(filename = "", content = "") {
+            document.getElementById('filename-input').value = filename;
+            document.getElementById('notepad-text').value = content;
+            openWindow('win-notepad');
+        }
+
+        async function saveFile() {
+            let filename = document.getElementById('filename-input').value.trim();
+            const content = document.getElementById('notepad-text').value;
+            
+            if (!filename) { htmosAlert("Please enter a filename!"); return; }
+            if (!filename.includes('.')) filename += ".txdm";
+
+            fileSystem[filename] = content;
+            await saveState();
+            
+            checkFileEditConsequences(filename, content);
+
+            htmosAlert(`Saved ${filename} and updated OS filesystem state successfully!`);
+            if (document.getElementById('win-explorer').classList.contains('show')) renderFiles();
+        }
+
+        function openExplorer() {
+            renderFiles();
+            openWindow('win-explorer');
+        }
+
+        function renderFiles() {
+            const grid = document.getElementById('explorer-content');
+            grid.innerHTML = ""; 
+
+            for (const [filename, content] of Object.entries(fileSystem)) {
+                const isHtml = filename.endsWith('.html');
+                const isSys = filename.endsWith('.dll') || filename.endsWith('.sys') || filename.endsWith('.cfg') || filename.endsWith('.vif');
+                const iconSymbol = isHtml ? '🌐' : (isSys ? '⚙️' : '📄');
+
+                const fileDiv = document.createElement('div');
+                fileDiv.className = 'file-icon';
+                fileDiv.innerHTML = `<span class="emoji-icon">${iconSymbol}</span>${filename}`;
+                
+                fileDiv.ondblclick = () => {
+                    if (isHtml) runHtmlFile(filename, content);
+                    else openNotepad(filename, content);
+                };
+
+                fileDiv.oncontextmenu = (e) => {
+                    e.preventDefault();
+                    selectedFile = filename;
+                    const menu = document.getElementById('file-context-menu');
+                    menu.style.display = 'flex';
+                    const explorerBody = document.getElementById('explorer-body').getBoundingClientRect();
+                    menu.style.left = (e.clientX - explorerBody.left) + 'px';
+                    menu.style.top = (e.clientY - explorerBody.top) + 'px';
+                };
+
+                grid.appendChild(fileDiv);
+            }
+        }
+
+        document.addEventListener('click', () => {
+            document.getElementById('file-context-menu').style.display = 'none';
+        });
+
+        function menuDelete() {
+            if (selectedFile && fileSystem[selectedFile] !== undefined) {
+                let target = selectedFile;
+                htmosConfirm(`Are you sure you want to delete ${target}?`, (confirmed) => {
+                    if (confirmed) deleteFileWithConsequences(target);
+                });
+            }
+        }
+
+        function menuRename() {
+            if (selectedFile) {
+                let newName = prompt("Enter new filename:", selectedFile);
+                if (newName && newName.trim() !== "" && newName !== selectedFile) {
+                    newName = newName.trim();
+                    if (!newName.includes('.')) newName += selectedFile.substring(selectedFile.lastIndexOf('.'));
+                    fileSystem[newName] = fileSystem[selectedFile];
+                    delete fileSystem[selectedFile];
+                    saveState();
+                    renderFiles();
+                }
+            }
+        }
+
+        function handleDragOver(e) { e.preventDefault(); e.stopPropagation(); document.getElementById('explorer-content').classList.add('drag-over'); }
+        function handleDragLeave(e) { e.preventDefault(); e.stopPropagation(); document.getElementById('explorer-content').classList.remove('drag-over'); }
+        function handleFileDrop(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const grid = document.getElementById('explorer-content');
+            grid.classList.remove('drag-over');
+
+            const droppedFiles = e.dataTransfer.files;
+            if (droppedFiles.length === 0) return;
+
+            let processedCount = 0;
+            for (let file of droppedFiles) {
+                const reader = new FileReader();
+                reader.onload = async function(event) {
+                    fileSystem[file.name] = event.target.result;
+                    await saveState();
+                    processedCount++;
+                    if (processedCount === droppedFiles.length) {
+                        renderFiles();
+                        htmosAlert(`Successfully imported ${processedCount} file(s) into uncapped storage!`);
+                    }
+                };
+                reader.readAsText(file);
+            }
+        }
+
+        function runHtmlFile(filename, content) {
+            document.getElementById('runner-title').innerText = filename;
+            const iframe = document.getElementById('html-runner-frame');
+            iframe.srcdoc = content;
+            openWindow('win-html-runner');
+        }
+    </script>
+</body>
+</html>
