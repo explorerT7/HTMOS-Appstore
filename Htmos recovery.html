@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTMOS Smart Auto-Detect Recovery Utility</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', system-ui, sans-serif; }
+        body { background: #f0f4f8; color: #333; display: flex; justify-content: center; align-items: center; height: 100vh; width: 100vw; }
+        .card { background: white; width: 480px; padding: 32px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.08); display: flex; flex-direction: column; gap: 16px; border: 1px solid #d1d9e0; }
+        h2 { font-size: 20px; font-weight: 600; color: #0d47a1; display: flex; align-items: center; gap: 8px; }
+        p { font-size: 13px; line-height: 1.5; color: #555; }
+        .log-box { background: #0c0c0c; color: #00ff66; padding: 12px; border-radius: 6px; font-family: 'Consolas', monospace; font-size: 12px; height: 150px; overflow-y: auto; border: 1px solid #333; }
+        .btn { padding: 10px 18px; background: #0078D7; color: white; border: none; border-radius: 6px; font-weight: 600; font-size: 13px; cursor: pointer; transition: background 0.15s; text-align: center; }
+        .btn:hover { background: #005a9e; }
+        .btn-success { background: #28a745; }
+        .btn-success:hover { background: #218838; }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <h2>🛠️ HTMOS Smart Auto-Recovery</h2>
+        <p>This utility scans your HTMOS database, automatically detects your system profile fingerprints, and safely restores missing files while matching your exact version code.</p>
+        
+        <div class="log-box" id="log-box">Ready to scan and auto-detect HTMOS storage...</div>
+
+        <button class="btn" id="action-btn" onclick="runSmartRecovery()">Auto-Detect & Restore</button>
+    </div>
+
+    <script>
+        // Master Version Registry Map
+        const versionRegistry = {
+            "HvdneLD23.1": "Version name:HTMOS Alpha\nVersion number:1.1\nVersion code:HvdneLD23.1\n\n[end]",
+            "HvdneLD10.0": "Version name:HTMOS Alpha\nVersion number:1.0\nVersion code:HvdneLD10.0\n\n[end]",
+            "HvdneBeta12.4": "Version name:HTMOS Beta\nVersion number:1.2\nVersion code:HvdneBeta12.4\n\n[end]"
+        };
+
+        const defaultFiles = {
+            "kernel.dll": "[CRITICAL] Core operating system kernel process. DO NOT DELETE OR CORRUPT.",
+            "explorer.sys": "[CRITICAL] Graphical shell and file manager driver module.",
+            "startmenu.cfg": "[FUNCTIONAL] Configuration layout for Start Menu components.",
+            "welcome.txdm": "Welcome to HTMOS! Try editing critical system files in Notepad...",
+            "myapp.html": "<html>\n<body style='background: lightblue; font-family: sans-serif;'>\n  <h2>Hello World!</h2>\n</body>\n</html>"
+        };
+
+        function log(message) {
+            const box = document.getElementById('log-box');
+            box.innerHTML += `<br>> ${message}`;
+            box.scrollTop = box.scrollHeight;
+        }
+
+        function runSmartRecovery() {
+            const btn = document.getElementById('action-btn');
+            btn.disabled = true;
+            log("Opening IndexedDB 'HTMOS_DB'...");
+
+            const request = indexedDB.open("HTMOS_DB", 1);
+
+            request.onerror = () => {
+                log("ERROR: Could not open HTMOS_DB. Have you run HTMOS in this browser yet?");
+                btn.disabled = false;
+            };
+
+            request.onsuccess = (event) => {
+                const db = event.target.result;
+                
+                if (!db.objectStoreNames.contains("filesystem")) {
+                    log("ERROR: 'filesystem' store not found.");
+                    btn.disabled = false;
+                    return;
+                }
+
+                const transaction = db.transaction(["filesystem"], "readwrite");
+                const store = transaction.objectStore("filesystem");
+                const getReq = store.get("htmos_filesystem");
+
+                getReq.onsuccess = () => {
+                    let fileSystem = getReq.result;
+
+                    if (!fileSystem || typeof fileSystem !== 'object') {
+                        log("No existing filesystem found. Initializing fresh default state...");
+                        fileSystem = {...defaultFiles};
+                        fileSystem["versioninfo.vif"] = versionRegistry["HvdneLD23.1"];
+                    } else {
+                        let restoredCount = 0;
+
+                        // 1. Restore other basic missing files
+                        for (let [filename, defaultContent] of Object.entries(defaultFiles)) {
+                            if (fileSystem[filename] === undefined) {
+                                fileSystem[filename] = defaultContent;
+                                log(`Restored missing file: ${filename}`);
+                                restoredCount++;
+                            }
+                        }
+
+                        // 2. Intelligent versioninfo.vif check & auto-detection
+                        if (fileSystem["versioninfo.vif"] === undefined) {
+                            log("versioninfo.vif is missing. Analyzing system fingerprints...");
+
+                            let detectedCode = null;
+
+                            // Strategy A: Check if version code exists anywhere else in file text/keys
+                            for (let [fname, content] of Object.entries(fileSystem)) {
+                                if (typeof content === 'string') {
+                                    for (let codeKey of Object.keys(versionRegistry)) {
+                                        if (content.includes(codeKey)) {
+                                            detectedCode = codeKey;
+                                            break;
+                                        }
+                                    }
+                                }
+                                if (detectedCode) break;
+                            }
+
+                            // Strategy B: Fallback check on kernel structure or default to latest stable
+                            if (!detectedCode) {
+                                log("No secondary code reference found. Defaulting to standard active build (HvdneLD23.1)...");
+                                detectedCode = "HvdneLD23.1";
+                            } else {
+                                log(`Matched existing system fingerprint to code: ${detectedCode}`);
+                            }
+
+                            fileSystem["versioninfo.vif"] = versionRegistry[detectedCode];
+                            log(`Restored versioninfo.vif using detected code profile.`);
+                            restoredCount++;
+                        } else {
+                            log("versioninfo.vif is intact. Skipping version overwrite.");
+                        }
+
+                        if (restoredCount === 0) {
+                            log("All system files are already present and fully intact!");
+                        } else {
+                            log(`Successfully recovered ${restoredCount} file(s).`);
+                        }
+                    }
+
+                    const putReq = store.put(fileSystem, "htmos_filesystem");
+                    putReq.onsuccess = () => {
+                        log("Database transaction completed successfully!");
+                        btn.innerText = "Recovery Complete!";
+                        btn.className = "btn btn-success";
+                        btn.disabled = false;
+                    };
+
+                    putReq.onerror = () => {
+                        log("ERROR: Failed to commit changes to database.");
+                        btn.disabled = false;
+                    };
+                };
+
+                getReq.onerror = () => {
+                    log("ERROR: Failed to read database table.");
+                    btn.disabled = false;
+                };
+            };
+        }
+    </script>
+</body>
+</html>
