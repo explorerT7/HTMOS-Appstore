@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Standalone File Importer App</title>
+    <title>File Importer</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         body { background: #f0f2f5; display: flex; justify-content: center; align-items: center; height: 100vh; color: #333; }
@@ -76,6 +76,10 @@
                 const file = files[i];
                 const reader = new FileReader();
                 
+                // Smart Check: If it's an audio file, read as a Data URL to keep binary intact. 
+                // Otherwise, read as text for notes/code documents.
+                const isAudio = /\.(mp3|wav|ogg|m4a)$/i.test(file.name);
+
                 reader.onload = function(event) {
                     const fileContent = event.target.result;
                     
@@ -90,7 +94,6 @@
                     if (window.parent !== window) {
                         window.parent.postMessage(filePayload, "*");
                     } else {
-                        // Fallback if opened in its own tab, store in local storage directly
                         localStorage.setItem('htmos_imported_fallback_' + file.name, fileContent);
                     }
 
@@ -98,13 +101,17 @@
                     const fileItem = document.createElement('div');
                     fileItem.className = 'file-item';
                     fileItem.innerHTML = `
-                        <span>📄 ${file.name}</span>
+                        <span>${isAudio ? '🎵' : '📄'} ${file.name}</span>
                         <small>${(file.size / 1024).toFixed(1)} KB</small>
                     `;
                     fileListContainer.appendChild(fileItem);
                 };
 
-                reader.readAsText(file);
+                if (isAudio) {
+                    reader.readAsDataURL(file); // Keeps MP3/WAV structure intact as a base64 data stream
+                } else {
+                    reader.readAsText(file);   // Keeps text/code files readable as plain text
+                }
             }
         }
     </script>
