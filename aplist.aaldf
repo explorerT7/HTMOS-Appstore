@@ -1,4 +1,4 @@
-Total apps:3
+Total apps:4
 
 App name:File Importer
 App release date:2026-7-26
@@ -23,5 +23,13 @@ App source html name:CMT.html
 App icon file name:cmt.png
 App publisher:CMT & explorerT7
 Oldest supported version:1.0
+
+App name:HTMOS Recovery Tool
+App release date:2026-7-26
+App latest update date:2026-7-26
+App source html name:Htmos recovery.html
+App icon file name:Htmos recovery.png
+App publisher:CMT & explorerT7
+Oldest supported version:1.1
 
 {end}
