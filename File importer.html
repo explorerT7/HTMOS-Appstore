@@ -82,15 +82,21 @@
             for (let i = 0; i < files.length; i++) {
                 const file = files[i];
                 
-                // Read the file contents as text (or adapt for binary data if needed)
+                // Read the file contents as text
                 const reader = new FileReader();
                 reader.onload = function(event) {
                     const fileContent = event.target.result;
                     
-                    // Here you can handle the file data (e.g., save to state, send to an API, or save to localStorage)
-                    console.log(`Loaded file: ${file.name}`, fileContent);
+                    // Package the file data and send it directly to the HTMOS parent window via postMessage
+                    const filePayload = {
+                        action: "IMPORT_FILE_TO_HTMOS",
+                        filename: file.name,
+                        content: fileContent
+                    };
 
-                    // Render file item in UI
+                    window.parent.postMessage(filePayload, "*");
+
+                    // Render file item in standalone UI
                     const fileItem = document.createElement('div');
                     fileItem.className = 'file-item';
                     fileItem.innerHTML = `
@@ -100,7 +106,6 @@
                     fileListContainer.appendChild(fileItem);
                 };
 
-                // Read file as text text/data. Use readAsDataURL if handling images/binaries.
                 reader.readAsText(file);
             }
         }
