@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HTMOS Music Player - Storage Edition</title>
+    <title>Music Player</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', system-ui, sans-serif; }
         body { background: #181818; color: #ffffff; height: 100vh; display: flex; flex-direction: column; padding: 20px; overflow: hidden; }
@@ -39,14 +39,14 @@
 </head>
 <body>
 
-    <audio id="audio-element"></audio>
+    <audio id="audio-element" preload="auto"></audio>
 
     <div class="player-container">
         <div class="album-art" id="album-art-container">🎵</div>
 
         <div class="track-info">
             <div class="track-title" id="track-title">No track selected</div>
-            <div class="track-artist" id="track-artist">Load music from HTMOS storage</div>
+            <div class="track-artist" id="track-artist">HTMOS Local Storage</div>
         </div>
 
         <div class="progress-container">
@@ -81,8 +81,11 @@
 
         audioElement.addEventListener('timeupdate', updateProgress);
         audioElement.addEventListener('ended', nextTrack);
+        audioElement.addEventListener('error', (e) => {
+            console.error("Audio element error detected:", audioElement.error);
+            document.getElementById('track-title').innerText = "Playback Error (Invalid Format)";
+        });
 
-        // Open IndexedDB connection used by HTMOS 11 to fetch stored files
         function getHtmosFiles() {
             return new Promise((resolve, reject) => {
                 const request = indexedDB.open("HTMOS_DB", 1);
@@ -111,20 +114,31 @@
                 playlist = [];
 
                 for (const [filename, content] of Object.entries(fs)) {
-                    // Check if file is an audio file or base64 data-URI audio string
-                    if (filename.match(/\.(mp3|wav|ogg|m4a)$/i) || (typeof content === 'string' && content.startsWith('data:audio/'))) {
-                        let audioSrc = content;
-                        // If it's stored as plain text/binary reference rather than data-URL, create a blob URI
-                        if (!content.startsWith('data:audio/')) {
-                            const blob = new Blob([content], { type: 'audio/mp3' });
+                    if (filename.match(/\.(mp3|wav|ogg|m4a)$/i)) {
+                        let audioSrc = "";
+                        
+                        if (content instanceof Blob || content instanceof File) {
+                            audioSrc = URL.createObjectURL(content);
+                        } else if (typeof content === 'string') {
+                            if (content.startsWith('data:audio/')) {
+                                audioSrc = content;
+                            } else {
+                                // Create a clean typed blob out of the string data to bypass raw string re-encoding blocks
+                                const blob = new Blob([content], { type: filename.endsWith('.wav') ? 'audio/wav' : 'audio/mpeg' });
+                                audioSrc = URL.createObjectURL(blob);
+                            }
+                        } else if (content instanceof ArrayBuffer || ArrayBuffer.isView(content)) {
+                            const blob = new Blob([content], { type: filename.endsWith('.wav') ? 'audio/wav' : 'audio/mpeg' });
                             audioSrc = URL.createObjectURL(blob);
                         }
 
-                        playlist.push({
-                            name: filename.replace(/\.[^/.]+$/, ""),
-                            filename: filename,
-                            url: audioSrc
-                        });
+                        if (audioSrc) {
+                            playlist.push({
+                                name: filename.replace(/\.[^/.]+$/, ""),
+                                filename: filename,
+                                url: audioSrc
+                            });
+                        }
                     }
                 }
 
@@ -133,6 +147,7 @@
                     loadTrack(0);
                 }
             } catch (err) {
+                console.error("Storage loading error:", err);
                 box.innerHTML = `<div style="text-align: center; color: #e81123; font-size: 12px; padding: 20px;">Error reading local storage.</div>`;
             }
         }
@@ -142,7 +157,7 @@
             box.innerHTML = "";
 
             if (playlist.length === 0) {
-                box.innerHTML = `<div style="text-align: center; color: #777; font-size: 12px; padding: 20px;">No music files found in HTMOS storage.<br><br>Tip: Drop or save .mp3 files into the File Explorer first!</div>`;
+                box.innerHTML = `<div style="text-align: center; color: #777; font-size: 12px; padding: 20px;">No music files found in HTMOS storage.<br><br>Tip: Save or upload your audio files properly in HTMOS!</div>`;
                 return;
             }
 
@@ -161,6 +176,7 @@
             const track = playlist[currentIndex];
 
             audioElement.src = track.url;
+            audioElement.load();
             document.getElementById('track-title').innerText = track.name;
             document.getElementById('track-artist').innerText = "HTMOS Local Storage";
             renderPlaylist();
@@ -182,8 +198,14 @@
 
         function playTrack() {
             if (playlist.length === 0) return;
-            audioElement.play();
-            document.getElementById('play-btn').innerText = "⏸";
+            const playPromise = audioElement.play();
+            if (playPromise !== undefined) {
+                playPromise.then(() => {
+                    document.getElementById('play-btn').innerText = "⏸";
+                }).catch(error => {
+                    console.error("Playback rejected:", error);
+                });
+            }
         }
 
         function pauseTrack() {
@@ -231,7 +253,6 @@
             return `${mins}:${remainingSecs < 10 ? '0' : ''}${remainingSecs}`;
         }
 
-        // Automatically load tracks from HTMOS storage on launch
         window.addEventListener('DOMContentLoaded', loadStorageTracks);
     </script>
 </body>
