@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Standalone File Importer App</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background: #f0f2f5; display: flex; justify-content: center; align-items: center; height: 100vh; color: #333; }
+        .importer-card { background: #ffffff; padding: 30px; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.08); width: 420px; text-align: center; }
+        h2 { margin-bottom: 8px; font-size: 22px; color: #1a73e8; }
+        p { font-size: 13px; color: #666; margin-bottom: 20px; }
+        .drop-zone { border: 2px dashed #1a73e8; border-radius: 8px; padding: 30px 20px; background: #fafbfc; cursor: pointer; transition: background 0.2s, border-color 0.2s; margin-bottom: 16px; }
+        .drop-zone.drag-over { background: #e8f0fe; border-color: #0d47a1; }
+        .drop-zone p { margin: 0; font-size: 14px; color: #444; }
+        #file-input { display: none; }
+        .file-list { max-height: 150px; overflow-y: auto; text-align: left; margin-top: 15px; border-top: 1px solid #eee; padding-top: 10px; }
+        .file-item { font-size: 12px; background: #f8f9fa; padding: 6px 10px; border-radius: 4px; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; }
+        .file-item span { font-weight: 500; color: #333; }
+        .file-item small { color: #888; }
+    </style>
+</head>
+<body>
+
+    <div class="importer-card">
+        <h2>File Importer</h2>
+        <p>Drag and drop local files from your PC or click to browse.</p>
+        
+        <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
+            <p>📂 Drag files here or <strong>Browse PC</strong></p>
+            <input type="file" id="file-input" multiple onchange="handleFileSelect(event)">
+        </div>
+
+        <div class="file-list" id="file-list">
+            <p style="text-align: center; color: #aaa; font-style: italic;">No files imported yet.</p>
+        </div>
+    </div>
+
+    <script>
+        const dropZone = document.getElementById('drop-zone');
+
+        // Prevent default behavior for drag events
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, preventDefaults, false);
+            window.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        // Highlight drop zone when item is dragged over it
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => dropZone.classList.add('drag-over'), false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => dropZone.classList.remove('drag-over'), false);
+        });
+
+        // Handle dropped files
+        dropZone.addEventListener('drop', (e) => {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            processFiles(files);
+        }, false);
+
+        // Handle selected files via input browser
+        function handleFileSelect(e) {
+            const files = e.target.files;
+            processFiles(files);
+        }
+
+        function processFiles(files) {
+            const fileListContainer = document.getElementById('file-list');
+            
+            if (files.length > 0) {
+                fileListContainer.innerHTML = ""; // Clear placeholder text
+            }
+
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                
+                // Read the file contents as text (or adapt for binary data if needed)
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const fileContent = event.target.result;
+                    
+                    // Here you can handle the file data (e.g., save to state, send to an API, or save to localStorage)
+                    console.log(`Loaded file: ${file.name}`, fileContent);
+
+                    // Render file item in UI
+                    const fileItem = document.createElement('div');
+                    fileItem.className = 'file-item';
+                    fileItem.innerHTML = `
+                        <span>📄 ${file.name}</span>
+                        <small>${(file.size / 1024).toFixed(1)} KB</small>
+                    `;
+                    fileListContainer.appendChild(fileItem);
+                };
+
+                // Read file as text text/data. Use readAsDataURL if handling images/binaries.
+                reader.readAsText(file);
+            }
+        }
+    </script>
+</body>
+</html>
