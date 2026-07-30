@@ -1,1239 +1,268 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>MiniMine 1.2</title>
-<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
-<style>
-  body { margin: 0; overflow: hidden; background: #3aaccb; font-family: 'Press Start 2P', cursive; user-select: none; }
-  
-  #ui { position: fixed; top: 10px; left: 10px; color: white; font-size: 10px; z-index: 10; background: rgba(0, 0, 0, 0.6); padding: 15px; border-radius: 5px; display: none; line-height: 1.6; pointer-events: none; }
-  #healthContainer { position: fixed; bottom: 80px; left: 20px; width: 200px; height: 20px; border: 3px solid white; background: #333; z-index: 10; display: none; }
-  #healthBar { width: 100%; height: 100%; background: #ff3333; transition: width 0.1s; }
-  #crosshair { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-size: 20px; pointer-events: none; z-index: 10; display: none; }
-  #btnSave { position: fixed; top: 10px; right: 10px; z-index: 20; padding: 10px; font-family: inherit; font-size: 10px; background: #444; color: white; border: 2px solid white; cursor: pointer; display: none; pointer-events: auto; }
-
-  /* Tooltip */
-  #tooltip { position: fixed; background: rgba(0, 0, 0, 0.9); color: white; border: 2px solid white; padding: 6px 8px; font-size: 8px; pointer-events: none; z-index: 200; display: none; box-shadow: 2px 2px 0px rgba(0,0,0,0.5); }
-
-  /* 9-Slot Hotbar */
-  #hotbar { position: fixed; bottom: 10px; left: 50%; transform: translateX(-50%); display: none; gap: 4px; background: rgba(0, 0, 0, 0.6); padding: 6px; border: 3px solid #fff; border-radius: 4px; z-index: 15; pointer-events: auto; }
-  .hotbar-slot { width: 44px; height: 44px; background: #8b8b8b; border: 2px solid #555; position: relative; cursor: pointer; box-sizing: border-box; background-size: cover; image-rendering: pixelated; }
-  .hotbar-slot.active { border-color: #ffff00; transform: scale(1.08); z-index: 2; box-shadow: 0 0 8px rgba(255, 255, 0, 0.8); }
-  .hotbar-num { position: absolute; top: 2px; left: 3px; font-size: 8px; color: white; text-shadow: 1px 1px 0 #000; pointer-events: none; }
-  .slot-count { position: absolute; bottom: 2px; right: 3px; font-size: 9px; color: #ffff00; font-weight: bold; text-shadow: 1px 1px 0 #000; pointer-events: none; }
-
-  /* Menus */
-  .menu-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(to bottom, #87ceeb 0%, #3aaccb 100%); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100; backdrop-filter: blur(4px); }
-  .menu-overlay h1 { color: white; font-size: 3.5rem; margin-bottom: 40px; text-shadow: 6px 6px 0px rgba(0,0,0,0.4); }
-  .menu-btn { background: rgba(0, 0, 0, 0.7); color: white; border: 4px solid white; padding: 15px 30px; font-family: inherit; font-size: 1rem; margin: 10px; cursor: pointer; width: 350px; text-align: center; box-shadow: 4px 4px 0px rgba(0,0,0,0.2); pointer-events: auto; z-index: 110; box-sizing: border-box; }
-  .menu-btn:hover { background: #228B22; transform: scale(1.02); }
-  #fileLoad { display: none; }
-  
-  /* Settings & Pause Menu */
-  #settingsMenu, #pauseMenu { display: none; color: white; }
-  #pauseMenu { background: rgba(0, 0, 0, 0.75); }
-  #pauseMenu h1 { font-size: 2.5rem; margin-bottom: 25px; }
-  .setting-row { margin: 15px 0; width: 380px; display: flex; flex-direction: column; gap: 10px; font-size: 0.8rem; }
-  .setting-row input[type="range"], .setting-row select { width: 100%; cursor: pointer; pointer-events: auto; font-family: inherit; font-size: 0.8rem; padding: 5px; }
-  .setting-row input[type="color"] { width: 100%; height: 40px; cursor: pointer; pointer-events: auto; border: 2px solid white; background: none; }
-  
-  /* Alert Menu */
-  #versionAlertMenu { display: none; }
-  #versionAlertMenu h1 { color: #ff3333; font-size: 3rem; text-shadow: 4px 4px 0px rgba(0,0,0,0.6); }
-  .alert-text { color: white; max-width: 600px; text-align: center; line-height: 1.8; margin-bottom: 30px; font-size: 0.8rem; text-shadow: 2px 2px 0px rgba(0,0,0,0.5); }
-  #btnAlertExpert { background: #8b0000; border-color: #ff3333; font-size: 0.8rem; margin-top: 30px; }
-
-  /* GUIs */
-  .gui-menu { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #c6c6c6; border: 4px solid #fff; border-bottom-color: #555; border-right-color: #555; padding: 20px; color: black; box-shadow: 0 0 0 4px #000; z-index: 100; flex-direction: column; gap: 15px; text-align: center; pointer-events: auto; }
-  .gui-menu h2 { margin: 0; font-size: 1.2rem; }
-  .crafting-container { display: flex; align-items: center; justify-content: center; gap: 20px; margin-top: 10px; }
-  .craft-grid { display: grid; grid-template-columns: repeat(3, 40px); gap: 2px; background: #8b8b8b; padding: 2px; }
-  .craft-slot { width: 40px; height: 40px; background: #8b8b8b; cursor: pointer; box-sizing: border-box; border: 2px solid #fff; border-bottom-color: #555; border-right-color: #555; background-size: cover; image-rendering: pixelated; position: relative; }
-  .result-slot { width: 50px; height: 50px; border: 2px solid #fff; border-bottom-color: #555; border-right-color: #555; background: #8b8b8b; cursor: pointer; background-size: cover; image-rendering: pixelated; position: relative; }
-  .inv-grid { display: grid; grid-template-columns: repeat(4, 50px); gap: 5px; background: #8b8b8b; padding: 5px; }
-  .inv-slot { width: 50px; height: 50px; cursor: pointer; box-sizing: border-box; border: 2px solid #fff; border-bottom-color: #555; border-right-color: #555; position: relative; background-size: cover; image-rendering: pixelated; }
-  .inv-slot.selected { border-color: #ffff00; border-bottom-color: #cccc00; border-right-color: #cccc00; }
-
-  /* Creative Mode Menu Layout Splitting */
-  #creativeMenu { display: none; }
-  .creative-layout { display: flex; gap: 30px; align-items: flex-start; justify-content: center; }
-  .creative-section { background: #9d9d9d; padding: 10px; border: 2px solid #555; }
-</style>
-</head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MiniMine</title>
+  </head>
 <body>
 
-<div id="mainMenu" class="menu-overlay">
-  <h1>MiniMine</h1>
-  <button class="menu-btn" id="btnSurvival">Survival Mode</button>
-  <button class="menu-btn" id="btnCreative">Creative Mode</button>
-  <label for="fileLoad" class="menu-btn">Load World</label>
-  <input type="file" id="fileLoad" accept=".json">
-  <button class="menu-btn" id="btnSettingsOpen">Settings</button>
-</div>
-
-<div id="settingsMenu" class="menu-overlay">
-  <h1>Settings</h1>
-  <div class="setting-row">
-    <label>Controls Mode:</label>
-    <select id="selControls">
-      <option value="mouse">Mouse (LMB: Break, RMB: Place)</option>
-      <option value="keys">Keyboard (. : Break, / : Place)</option>
-    </select>
+  <div id="mainMenu" style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh;">
+    <h1>MiniMine</h1>
+    <button id="btnSurvival">Survival Mode</button>
+    <button id="btnCreative">Creative Mode</button>
+    <button id="btnLoad">Load Game</button>
+    <button id="btnSettingsOpen">Settings</button>
   </div>
-  <div class="setting-row">
-    <label>Player Color:</label>
-    <input type="color" id="colPlayer" value="#333333">
+
+  <div id="settingsMenu" style="display: none;">
+    <button id="btnSettingsClose">Back to Menu</button>
   </div>
-  <div class="setting-row">
-    <label><input type="checkbox" id="chkTrees" checked> Enable Natural Trees</label>
+
+  <div id="versionAlertMenu" style="display: none;">
+    <p>Version mismatch detected!</p>
+    <button id="btnAlertBack">Back</button>
+    <button id="btnAlertExpert">Load Anyway</button>
   </div>
-  <div class="setting-row">
-    <label>Render Distance: <span id="valDist">3</span></label>
-    <input type="range" id="rngDist" min="1" max="6" value="3">
+
+  <div id="pauseMenu" style="display: none;">
+    <button id="btnPauseResume">Resume</button>
+    <button id="btnPauseSave">Save Game</button>
+    <button id="btnPauseExit">Exit to Menu</button>
   </div>
-  <div class="setting-row">
-    <label>World Depth: <span id="valDepth">8</span></label>
-    <input type="range" id="rngDepth" min="1" max="20" value="8">
-  </div>
-  <button class="menu-btn" id="btnSettingsClose">Apply & Back</button>
-</div>
 
-<div id="pauseMenu" class="menu-overlay">
-  <h1>GAME PAUSED</h1>
-  <div class="setting-row">
-    <label>Controls Mode:</label>
-    <select id="pauseSelControls">
-      <option value="mouse">Mouse (LMB: Break, RMB: Place)</option>
-      <option value="keys">Keyboard (. : Break, / : Place)</option>
-    </select>
-  </div>
-  <div class="setting-row">
-    <label>Player Color:</label>
-    <input type="color" id="pauseColPlayer" value="#333333">
-  </div>
-  <div class="setting-row">
-    <label>Render Distance: <span id="pauseValDist">3</span></label>
-    <input type="range" id="pauseRngDist" min="1" max="6" value="3">
-  </div>
-  <button class="menu-btn" id="btnPauseResume">Resume Game</button>
-  <button class="menu-btn" id="btnPauseSave">Save World</button>
-  <button class="menu-btn" id="btnPauseExit" style="border-color: #ff5555; background: rgba(139,0,0,0.7);">Exit to Main Menu</button>
-</div>
+  <div id="ui" style="display: none;"></div>
+  <div id="hotbar" style="display: none;"></div>
+  <div id="btnSave" style="display: none;">Save Game</div>
+  <div id="healthContainer" style="display: none;"></div>
+  <div id="crosshair" style="display: none;"></div>
 
-<div id="versionAlertMenu" class="menu-overlay">
-  <h1>WARNING</h1>
-  <div class="alert-text">World is corrupted or out of date.</div>
-  <button class="menu-btn" id="btnAlertBack">Back</button>
-  <button class="menu-btn" id="btnAlertExpert">I am an expert</button>
-</div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script>
+    // Constants and Global Setup
+    const GAME_VERSION = "1.0.0";
+    const CHUNK = 16;
+    const world = new Map();
+    const saved = new Map();
+    const active = new Set();
+    const activeSaplings = [];
+    const instancedMeshes = [];
+    let needsMeshUpdate = false;
+    let gameStarted = false;
+    let gameMode = 'survival';
 
-<div id="craftingMenu" class="gui-menu">
-  <h2>Crafting Table</h2>
-  <div style="font-size: 8px; margin-bottom: 5px;">Click item to place/remove from grid.</div>
-  <div class="crafting-container">
-    <div class="craft-grid" id="craftingGrid">
-      <div class="craft-slot" data-idx="0"></div><div class="craft-slot" data-idx="1"></div><div class="craft-slot" data-idx="2"></div>
-      <div class="craft-slot" data-idx="3"></div><div class="craft-slot" data-idx="4"></div><div class="craft-slot" data-idx="5"></div>
-      <div class="craft-slot" data-idx="6"></div><div class="craft-slot" data-idx="7"></div><div class="craft-slot" data-idx="8"></div>
-    </div>
-    <div style="font-size: 20px;">➔</div><div id="craftResult" class="result-slot" data-result=""></div>
-  </div>
-  <button class="menu-btn" style="width: 100%; font-size: 0.8rem;" id="btnCloseCrafting">Close Menu</button>
-</div>
+    const SETTINGS = {
+      renderDistance: 2,
+      worldDepth: 8,
+      treesEnabled: true,
+      controlMode: 'mouse',
+      playerColor: '#ff0000'
+    };
 
-<div id="inventoryMenu" class="gui-menu">
-  <h2>Survival Inventory</h2>
-  <div style="font-size: 8px; margin-bottom: 5px;">2x2 Crafting & Storage (Click to swap with selected hotbar slot)</div>
-  <div class="crafting-container" style="margin-bottom: 10px;">
-    <div class="craft-grid" style="grid-template-columns: repeat(2, 40px);" id="invCraftingGrid">
-      <div class="craft-slot" data-idx="0"></div><div class="craft-slot" data-idx="1"></div>
-      <div class="craft-slot" data-idx="2"></div><div class="craft-slot" data-idx="3"></div>
-    </div>
-    <div style="font-size: 20px;">➔</div><div id="invCraftResult" class="result-slot" data-result=""></div>
-  </div>
-  <div class="inv-grid" id="inventoryGrid"></div>
-  <button class="menu-btn" style="width: 100%; font-size: 0.8rem;" id="btnCloseInventory">Close Menu</button>
-</div>
+    const PLAYER = {
+      pos: new THREE.Vector3(0, 10, 0),
+      velY: 0,
+      width: 0.6,
+      height: 1.8,
+      maxHealth: 100,
+      health: 100,
+      onGround: false,
+      respawn: new THREE.Vector3(0, 10, 0)
+    };
 
-<div id="creativeMenu" class="gui-menu">
-  <h2>Creative Menu</h2>
-  <div style="font-size: 8px; margin-bottom: 10px;">Select a hotbar slot, then pick any item from the Items Tab!</div>
-  <div class="creative-layout">
-    <div class="creative-section">
-      <div style="font-size: 9px; margin-bottom: 5px; font-weight: bold;">Hotbar Slots</div>
-      <div id="creativeHotbarGrid" class="inv-grid" style="grid-template-columns: repeat(3, 50px);"></div>
-    </div>
-    <div class="creative-section">
-      <div style="font-size: 9px; margin-bottom: 5px; font-weight: bold;">Items Tab</div>
-      <div id="creativeItemsGrid" class="inv-grid" style="grid-template-columns: repeat(4, 50px);"></div>
-    </div>
-  </div>
-  <button class="menu-btn" style="width: 100%; font-size: 0.8rem;" id="btnCloseCreative">Close Menu</button>
-</div>
+    const hotbarSlots = new Array(9).fill(null);
+    const survivalInventory = new Array(16).fill(null);
+    let hotbarSelectedIndex = 0;
+    let selected = null;
 
-<div id="ui">
-  <b>CONTROLS</b><br>
-  WASD : Move | SHIFT : Sprint<br>
-  SPACE : Jump | F : Camera<br>
-  1-9 : Hotbar Select<br>
-  <span id="uiActionControls">LMB : Break | RMB : Place</span><br>
-  E : Inventory / Menus | ESC : Pause<br>
-</div>
+    const clock = new THREE.Clock();
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
 
-<div id="hotbar"></div>
-<div id="healthContainer"><div id="healthBar"></div></div>
-<div id="crosshair">+</div>
-<button id="btnSave">Save Game</button>
-<div id="tooltip"></div>
+    const playerMesh = new THREE.Mesh(
+      new THREE.BoxGeometry(PLAYER.width, PLAYER.height, PLAYER.width),
+      new THREE.MeshBasicMaterial({ color: SETTINGS.playerColor })
+    );
+    scene.add(playerMesh);
 
-<script src="https://cdn.jsdelivr.net/npm/three@0.159.0/build/three.min.js"></script>
-<script>
-/* ================= GAME SETTINGS ================= */
-const GAME_VERSION = "v1.2";
-const SETTINGS = { treesEnabled: true, renderDistance: 3, worldDepth: 8, playerColor: "#333333", controlMode: "mouse" };
+    const highlightBox = new THREE.Mesh(
+      new THREE.BoxGeometry(1.002, 1.002, 1.002),
+      new THREE.MeshBasicMaterial({ color: 0xffff00, wireframe: true })
+    );
+    scene.add(highlightBox);
 
-let gameStarted = false, gameMode = 'survival';
-const CHUNK = 16;
-
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x87ceeb);
-scene.fog = new THREE.Fog(0x87ceeb, 10, 80);
-
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-const renderer = new THREE.WebGLRenderer({ antialias: false });
-renderer.setSize(window.innerWidth, window.innerHeight);
-document.body.appendChild(renderer.domElement);
-
-const clock = new THREE.Clock();
-scene.add(new THREE.AmbientLight(0xffffff, 0.7)); 
-const sun = new THREE.DirectionalLight(0xffffff, 0.8);
-sun.position.set(30, 50, 30);
-scene.add(sun);
-
-const PLAYER = {
-  width: 0.6, height: 1.8, pos: new THREE.Vector3(0, 10, 0),
-  velY: 0, onGround: false, health: 10, maxHealth: 10, respawn: new THREE.Vector3(0, 10, 0)
-};
-
-const playerMesh = new THREE.Mesh(
-  new THREE.BoxGeometry(PLAYER.width, PLAYER.height, PLAYER.width),
-  new THREE.MeshStandardMaterial({ color: SETTINGS.playerColor, roughness: 0.8 })
-);
-scene.add(playerMesh);
-
-/* --- TARGET OUTLINE BOX --- */
-const highlightGeo = new THREE.EdgesGeometry(new THREE.BoxGeometry(1.02, 1.02, 1.02));
-const highlightMat = new THREE.LineBasicMaterial({ color: 0x000000, linewidth: 2 });
-const highlightBox = new THREE.LineSegments(highlightGeo, highlightMat);
-highlightBox.visible = false;
-scene.add(highlightBox);
-
-/* --- PROCEDURAL TEXTURES --- */
-const uiTextures = {}; 
-
-function generateTexture(type, hexColor) {
-  const canvas = document.createElement('canvas');
-  canvas.width = 16; canvas.height = 16;
-  const ctx = canvas.getContext('2d');
-  
-  let rBase = parseInt(hexColor.slice(1,3), 16), gBase = parseInt(hexColor.slice(3,5), 16), bBase = parseInt(hexColor.slice(5,7), 16);
-
-  for (let i = 0; i < 256; i++) {
-    const x = i % 16, y = Math.floor(i / 16);
-    let r = rBase, g = gBase, b = bBase, noise = 0;
-    
-    if (type === 'grass_top') {
-       r=50; g=170; b=50; noise = Math.floor((Math.random()-0.5)*15);
-    } else if (type === 'grass_side') {
-       if (y < 4 || (y < 6 && Math.random() > 0.5)) { r=50; g=170; b=50; noise = Math.floor((Math.random()-0.5)*15); } 
-       else { r=120; g=70; b=30; noise = Math.floor((Math.random()-0.5)*25); } 
-    } else if (type === 'dirt') {
-       noise = Math.floor((Math.random()-0.5)*25);
-    } else if (type === 'wood_side') {
-       noise = (x % 2 === 0 || x % 3 === 0) ? -25 : 10;
-    } else if (type === 'wood_top') {
-       const dist = Math.sqrt((x-7.5)**2 + (y-7.5)**2);
-       if (Math.floor(dist) % 2 === 0) { r=160; g=82; b=45; } else { r=205; g=133; b=63; }
-    } else if (type === 'ct_top') {
-       if (x===0 || y===0 || x===15 || y===15 || x===5 || x===10 || y===5 || y===10) { r=80; g=40; b=10; }
-       else { r=205; g=133; b=63; noise = (Math.random()-0.5)*10;}
-    } else if (type === 'ct_side') {
-       if (y===0 || y===1 || y===2) { r=150; g=80; b=30; noise = (x%2===0)?-10:10; } 
-       else if (y > 3 && y < 8 && x > 2 && x < 13) { r=60; g=30; b=10; } 
-       else { r=160; g=82; b=45; noise = (x%2===0)?-15:15; } 
-    } else if (type === 'furnace_front') {
-       if (x===0 || y===0 || x===15 || y===15) { r=100; g=100; b=100; }
-       else if (y > 5 && y < 13 && x > 3 && x < 12) { r=20; g=20; b=20; }
-       else { r=120; g=120; b=120; noise = Math.floor((Math.random()-0.5)*15); }
-    } else if (type === 'compacted_stone') {
-       r=80; g=80; b=85; noise = (x%2 === y%2) ? -15 : 15;
-    } else if (type === 'lava') {
-       if (Math.random() > 0.7) { r=255; g=140; b=0; } 
-       else if (Math.random() > 0.5) { r=200; g=30; b=0; } 
-       else { r=50; g=0; b=0; } 
-    } else if (type === 'sapling') {
-       if (x === 7 || x === 8 || (y < 12 && x > 4 && x < 11 && Math.random() > 0.3)) { r=124; g=252; b=0; noise=10; }
-       else { ctx.clearRect(x, y, 1, 1); continue; }
-    } else if (type === 'bed_head_top') {
-       if (y < 8) { r=240; g=240; b=240; noise=(Math.random()-0.5)*10;} 
-       else { r=220; g=20; b=60; noise=(Math.random()-0.5)*10; } 
-    } else if (type === 'bed_foot_top') {
-       r=220; g=20; b=60; noise=(Math.random()-0.5)*10; 
-    } else if (type === 'bed_side') {
-       if (y < 5) { r=220; g=20; b=60; } 
-       else { r=139; g=69; b=19; noise=(x%2===0)?-10:10; } 
-    } else { 
-       noise = Math.floor((Math.random()-0.5)*20);
-       if (type === 'leaves' && Math.random() > 0.3) { ctx.clearRect(x, y, 1, 1); continue; }
-       if (type === 'glass') {
-         if (x>0 && x<15 && y>0 && y<15) { ctx.fillStyle = (Math.random()>0.9) ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.1)'; ctx.fillRect(x,y,1,1); continue; }
-         else { ctx.fillStyle = 'rgba(255,255,255,0.8)'; ctx.fillRect(x,y,1,1); continue; }
-       }
+    function key(x, y, z) {
+      return `${x},${y},${z}`;
     }
 
-    r = Math.min(255, Math.max(0, r + noise)); g = Math.min(255, Math.max(0, g + noise)); b = Math.min(255, Math.max(0, b + noise));
-    ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
-    ctx.fillRect(x, y, 1, 1);
-  }
-  
-  const dataUrl = canvas.toDataURL();
-  uiTextures[type] = dataUrl;
-  
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.magFilter = THREE.NearestFilter; tex.minFilter = THREE.NearestFilter;
-  return tex;
-}
-
-// Generate Textures
-const tGrassTop = generateTexture('grass_top', '#3cb043'); const tGrassSide = generateTexture('grass_side', '#228B22'); uiTextures['grass'] = uiTextures['grass_side'];
-const tDirt = generateTexture('dirt', '#8B4513');
-const tWoodTop = generateTexture('wood_top', '#D2B48C'); const tWoodSide = generateTexture('wood_side', '#5C4033'); uiTextures['wood'] = uiTextures['wood_side'];
-const tCTTop = generateTexture('ct_top', '#CD853F'); const tCTSide = generateTexture('ct_side', '#8B4513'); uiTextures['crafting_table'] = uiTextures['ct_side'];
-const tBedHeadTop = generateTexture('bed_head_top', '#FF0000'); const tBedFootTop = generateTexture('bed_foot_top', '#FF0000'); const tBedSide = generateTexture('bed_side', '#8B4513'); uiTextures['bed'] = uiTextures['bed_head_top'];
-const tLava = generateTexture('lava', '#FF4500'); const tSapling = generateTexture('sapling', '#7CFC00');
-const tWater = generateTexture('water', '#1E90FF'); const tGlass = generateTexture('glass', '#FFFFFF'); const tStone = generateTexture('stone', '#888888'); const tLeaves = generateTexture('leaves', '#3A5F0B');
-const tFurnaceFront = generateTexture('furnace_front', '#666666'); uiTextures['furnace'] = uiTextures['furnace_front'];
-const tCompactedStone = generateTexture('compacted_stone', '#555559');
-
-const m = (tex, props={}) => new THREE.MeshStandardMaterial({ map: tex, ...props });
-const mats = {
-  grassTop: m(tGrassTop, {roughness: 0.9}), grassSide: m(tGrassSide, {roughness: 0.9}),
-  dirt: m(tDirt, {roughness: 1.0}),
-  woodTop: m(tWoodTop, {roughness: 0.9}), woodSide: m(tWoodSide, {roughness: 0.9}),
-  ctTop: m(tCTTop, {roughness: 0.9}), ctSide: m(tCTSide, {roughness: 0.9}),
-  bedHTop: m(tBedHeadTop, {roughness: 0.9}), bedFTop: m(tBedFootTop, {roughness: 0.9}), bedSide: m(tBedSide, {roughness: 0.9}),
-  stone: m(tStone, {roughness: 0.7}), furnaceFront: m(tFurnaceFront, {roughness: 0.8})
-};
-
-const materials = {
-  grass: [mats.grassSide, mats.grassSide, mats.grassTop, mats.dirt, mats.grassSide, mats.grassSide],
-  dirt: mats.dirt,
-  wood: [mats.woodSide, mats.woodSide, mats.woodTop, mats.woodTop, mats.woodSide, mats.woodSide],
-  crafting_table: [mats.ctSide, mats.ctSide, mats.ctTop, mats.woodTop, mats.ctSide, mats.ctSide],
-  bed_head: [mats.bedSide, mats.bedSide, mats.bedHTop, mats.woodTop, mats.bedSide, mats.bedSide],
-  bed_foot: [mats.bedSide, mats.bedSide, mats.bedFTop, mats.woodTop, mats.bedSide, mats.bedSide],
-  furnace: [mats.stone, mats.stone, mats.stone, mats.stone, mats.furnaceFront, mats.stone],
-  compacted_stone: m(tCompactedStone, { roughness: 0.6 }),
-  lava: m(tLava, { emissive: 0xFF2200, emissiveIntensity: 0.4 }),
-  water: m(tWater, { transparent: true, opacity: 0.7, roughness: 0.1 }),
-  glass: m(tGlass, { transparent: true }),
-  stone: mats.stone,
-  leaves: m(tLeaves, { transparent: true, alphaTest: 0.1 }),
-  sapling: m(tSapling, { transparent: true, alphaTest: 0.1, side: THREE.DoubleSide })
-};
-
-/* --- GEOMETRIES --- */
-const geo = new THREE.BoxGeometry(1, 1, 1);
-const bedGeo = new THREE.BoxGeometry(1, 0.5, 1);
-const saplingGeo = new THREE.BufferGeometry();
-const sVerts = new Float32Array([
-    -0.4, -0.5, -0.4,   0.4, -0.5,  0.4,   0.4,  0.5,  0.4,  -0.4, -0.5, -0.4,   0.4,  0.5,  0.4,  -0.4,  0.5, -0.4,
-     0.4, -0.5, -0.4,  -0.4, -0.5,  0.4,  -0.4,  0.5,  0.4,   0.4, -0.5, -0.4,  -0.4,  0.5,  0.4,   0.4,  0.5, -0.4
-]);
-const sUvs = new Float32Array([ 0,0, 1,0, 1,1, 0,0, 1,1, 0,1,  0,0, 1,0, 1,1, 0,0, 1,1, 0,1 ]);
-saplingGeo.setAttribute('position', new THREE.BufferAttribute(sVerts, 3));
-saplingGeo.setAttribute('uv', new THREE.BufferAttribute(sUvs, 2));
-saplingGeo.computeVertexNormals();
-
-const blockTypes = ["grass", "dirt", "stone", "wood", "leaves", "glass", "water", "lava", "crafting_table", "furnace", "compacted_stone", "bed", "sapling"];
-const renderTypes = ["grass", "dirt", "bed_head", "bed_foot", "lava", "water", "glass", "stone", "wood", "leaves", "sapling", "crafting_table", "furnace", "compacted_stone"];
-
-/* --- TOOLTIP LOGIC --- */
-const tooltipEl = document.getElementById("tooltip");
-function formatBlockName(type) {
-  if (!type) return "";
-  return type.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-}
-function handleTooltip(e, type) {
-  if (type) {
-    tooltipEl.style.display = 'block';
-    tooltipEl.innerText = formatBlockName(type);
-    tooltipEl.style.left = (e.clientX + 12) + 'px';
-    tooltipEl.style.top = (e.clientY + 15) + 'px';
-  } else {
-    tooltipEl.style.display = 'none';
-  }
-}
-function hideTooltip() { tooltipEl.style.display = 'none'; }
-
-// Inventory Setup
-const hotbarSlots = new Array(9).fill(null);
-const survivalInventory = new Array(16).fill(null);
-let hotbarSelectedIndex = 0;
-let selected = null; 
-
-function getSlotType(slot) { return slot ? slot.type : null; }
-
-function updateHotbarUI() {
-  const hb = document.getElementById("hotbar");
-  hb.innerHTML = "";
-  hotbarSlots.forEach((slot, index) => {
-    const div = document.createElement("div");
-    div.className = "hotbar-slot" + (index === hotbarSelectedIndex ? " active" : "");
-    if (slot && slot.type) {
-      div.style.backgroundImage = `url(${uiTextures[slot.type]})`;
-      if (gameMode === 'survival' && slot.count > 0) {
-        div.innerHTML = `<span class="hotbar-num">${index + 1}</span><span class="slot-count">${slot.count}</span>`;
-      } else {
-        div.innerHTML = `<span class="hotbar-num">${index + 1}</span>`;
-      }
-    } else {
-      div.innerHTML = `<span class="hotbar-num">${index + 1}</span>`;
+    function getSlotType(slot) {
+      if (!slot) return null;
+      return typeof slot === 'string' ? slot : slot.type;
     }
-    
-    // Tooltip listeners
-    div.addEventListener("mouseenter", (e) => handleTooltip(e, slot ? slot.type : null));
-    div.addEventListener("mousemove", (e) => handleTooltip(e, slot ? slot.type : null));
-    div.addEventListener("mouseleave", hideTooltip);
-    
-    div.addEventListener("click", () => {
-      hotbarSelectedIndex = index;
-      selected = getSlotType(hotbarSlots[index]);
-      updateHotbarUI();
-      updateInventoryUI();
-      updateCreativeMenuUI();
-      hideTooltip(); // Hide tooltip smoothly on click update
-    });
-    hb.appendChild(div);
-  });
-}
 
-function updateInventoryUI() {
-  const grid = document.getElementById("inventoryGrid"); 
-  if (!grid) return;
-  grid.innerHTML = ""; 
-  survivalInventory.forEach((slot, idx) => {
-    const div = document.createElement("div"); div.className = "inv-slot";
-    if (slot && slot.type) {
-      div.style.backgroundImage = `url(${uiTextures[slot.type]})`;
-      if (gameMode === 'survival' && slot.count > 0) {
-        div.innerHTML = `<span class="slot-count">${slot.count}</span>`;
+    function updateHotbarUI() {}
+    function updateInventoryUI() {}
+    function updateCreativeMenuUI() {}
+    function hideTooltip() {}
+    function handleTooltip(e, type) {}
+    function consumePlayerItem(item, count) {}
+    function givePlayerItem(item, count) {}
+    function removeBlock(x, y, z) {}
+    function addBlock(x, y, z, type, rot) {}
+    function growTree(x, y, z) {}
+    function rebuildMeshes() {}
+
+    // --- BROWSER STORAGE SAVE & LOAD LOGIC ---
+
+    function triggerSaveGame() {
+      const data = { 
+        version: GAME_VERSION, 
+        gameMode, 
+        player: { 
+          x: PLAYER.pos.x, 
+          y: PLAYER.pos.y, 
+          z: PLAYER.pos.z, 
+          health: PLAYER.health, 
+          respawnX: PLAYER.respawn.x, 
+          respawnY: PLAYER.respawn.y, 
+          respawnZ: PLAYER.respawn.z, 
+          hotbar: hotbarSlots, 
+          survivalInventory, 
+          selectedIndex: hotbarSelectedIndex 
+        }, 
+        savedChunks: Object.fromEntries(saved), 
+        playerColor: SETTINGS.playerColor, 
+        worldSettings: { 
+          worldDepth: SETTINGS.worldDepth, 
+          treesEnabled: SETTINGS.treesEnabled, 
+          renderDistance: SETTINGS.renderDistance 
+        } 
+      }; 
+
+      try {
+        localStorage.setItem('minimine_world', JSON.stringify(data));
+        alert("Game saved successfully to browser storage!");
+      } catch (err) {
+        alert("Failed to save game. Storage might be full.");
+        console.error(err);
       }
     }
-    
-    // Tooltip listeners
-    div.addEventListener("mouseenter", (e) => handleTooltip(e, slot ? slot.type : null));
-    div.addEventListener("mousemove", (e) => handleTooltip(e, slot ? slot.type : null));
-    div.addEventListener("mouseleave", hideTooltip);
-    
-    div.addEventListener("click", () => { 
-      const currentHotbar = hotbarSlots[hotbarSelectedIndex];
-      hotbarSlots[hotbarSelectedIndex] = slot;
-      survivalInventory[idx] = currentHotbar;
-      selected = getSlotType(hotbarSlots[hotbarSelectedIndex]);
-      updateHotbarUI(); 
-      updateInventoryUI(); 
-      hideTooltip();
-    });
-    grid.appendChild(div);
-  });
-}
 
-function updateCreativeMenuUI() {
-  const hbGrid = document.getElementById("creativeHotbarGrid");
-  const itemsGrid = document.getElementById("creativeItemsGrid");
-  if(!hbGrid || !itemsGrid) return;
-  
-  hbGrid.innerHTML = "";
-  hotbarSlots.forEach((slot, index) => {
-    const div = document.createElement("div");
-    div.className = "inv-slot" + (index === hotbarSelectedIndex ? " selected" : "");
-    if (slot && slot.type) div.style.backgroundImage = `url(${uiTextures[slot.type]})`;
-    div.innerHTML = `<span class="hotbar-num">${index + 1}</span>`;
-    
-    div.addEventListener("mousemove", (e) => handleTooltip(e, slot ? slot.type : null));
-    div.addEventListener("mouseleave", hideTooltip);
-    
-    div.addEventListener("click", () => {
-      hotbarSelectedIndex = index;
-      selected = getSlotType(hotbarSlots[index]);
-      updateCreativeMenuUI();
-      updateHotbarUI();
-      hideTooltip();
-    });
-    hbGrid.appendChild(div);
-  });
-
-  itemsGrid.innerHTML = "";
-  blockTypes.forEach(type => {
-    const div = document.createElement("div");
-    div.className = "inv-slot";
-    div.style.backgroundImage = `url(${uiTextures[type]})`;
-    
-    div.addEventListener("mousemove", (e) => handleTooltip(e, type));
-    div.addEventListener("mouseleave", hideTooltip);
-    
-    div.addEventListener("click", () => {
-      hotbarSlots[hotbarSelectedIndex] = { type: type, count: 1 };
-      selected = type;
-      updateCreativeMenuUI();
-      updateHotbarUI();
-      hideTooltip();
-    });
-    itemsGrid.appendChild(div);
-  });
-}
-
-updateHotbarUI();
-
-const world = new Map(), active = new Set(), saved = new Map();
-const key = (x, y, z) => `${Math.round(x)},${Math.round(y)},${Math.round(z)}`;
-let instancedMeshes = [], needsMeshUpdate = false;
-const activeSaplings = [];
-
-function addBlock(x, y, z, type, rot = 0) {
-  const k = key(x, y, z);
-  if (world.has(k)) return;
-  world.set(k, { type: type, rot: rot });
-  
-  const cx = Math.floor(x / CHUNK), cz = Math.floor(z / CHUNK);
-  if (saved.has(`${cx},${cz}`)) saved.get(`${cx},${cz}`).push({ x: Math.round(x), y: Math.round(y), z: Math.round(z), type, rot });
-  else saved.set(`${cx},${cz}`, [{ x: Math.round(x), y: Math.round(y), z: Math.round(z), type, rot }]);
-  
-  if (type.startsWith("bed")) PLAYER.respawn.set(x, y + 1.1, z);
-  if (type === "sapling") activeSaplings.push({ x, y, z, age: 0 });
-  needsMeshUpdate = true;
-}
-
-function findClosestEmptyHotbarSlot(startIdx) {
-  if (!hotbarSlots[startIdx]) return startIdx;
-  for (let dist = 1; dist < 9; dist++) {
-    if (startIdx - dist >= 0 && !hotbarSlots[startIdx - dist]) return startIdx - dist;
-    if (startIdx + dist < 9 && !hotbarSlots[startIdx + dist]) return startIdx + dist;
-  }
-  return -1;
-}
-
-function givePlayerItem(itemType, count = 1) {
-  if (gameMode === 'creative') {
-    hotbarSlots[hotbarSelectedIndex] = { type: itemType, count: 1 };
-    selected = itemType;
-    updateHotbarUI();
-    return;
-  }
-
-  for (let c = 0; c < count; c++) {
-    let added = false;
-    for (let i = 0; i < 9; i++) {
-      if (hotbarSlots[i] && hotbarSlots[i].type === itemType) {
-        hotbarSlots[i].count++;
-        added = true;
-        break;
+    function loadGameData() {
+      const rawData = localStorage.getItem('minimine_world');
+      if (!rawData) {
+        alert("No saved world found in browser storage!");
+        return;
       }
-    }
-    if (!added) {
-      for (let i = 0; i < 16; i++) {
-        if (survivalInventory[i] && survivalInventory[i].type === itemType) {
-          survivalInventory[i].count++;
-          added = true;
-          break;
+
+      try {
+        const data = JSON.parse(rawData);
+        world.clear(); 
+        active.clear(); 
+        saved.clear(); 
+        activeSaplings.length = 0;
+
+        if (data.playerColor) { 
+          SETTINGS.playerColor = data.playerColor; 
+          document.getElementById('colPlayer').value = data.playerColor; 
+          document.getElementById('pauseColPlayer').value = data.playerColor; 
+          playerMesh.material.color.set(SETTINGS.playerColor); 
         }
-      }
-    }
-    if (!added) {
-      const closestEmpty = findClosestEmptyHotbarSlot(hotbarSelectedIndex);
-      if (closestEmpty !== -1) {
-        hotbarSlots[closestEmpty] = { type: itemType, count: 1 };
-        added = true;
-      }
-    }
-    if (!added) {
-      const emptyInv = survivalInventory.findIndex(s => !s);
-      if (emptyInv !== -1) {
-        survivalInventory[emptyInv] = { type: itemType, count: 1 };
-      }
-    }
-  }
-  selected = getSlotType(hotbarSlots[hotbarSelectedIndex]);
-  updateHotbarUI();
-  updateInventoryUI();
-}
 
-function consumePlayerItem(itemType, count = 1) {
-  if (gameMode === 'creative') return true;
-  
-  let available = 0;
-  for (let i = 0; i < 9; i++) if (hotbarSlots[i] && hotbarSlots[i].type === itemType) available += hotbarSlots[i].count;
-  for (let i = 0; i < 16; i++) if (survivalInventory[i] && survivalInventory[i].type === itemType) available += survivalInventory[i].count;
-  
-  if (available < count) return false;
+        if (data.worldSettings) { 
+          SETTINGS.treesEnabled = data.worldSettings.treesEnabled; 
+          document.getElementById('chkTrees').checked = SETTINGS.treesEnabled; 
+          if (data.worldSettings.worldDepth !== undefined) {
+            SETTINGS.worldDepth = parseInt(data.worldSettings.worldDepth); 
+            document.getElementById('rngDepth').value = SETTINGS.worldDepth;
+            document.getElementById('valDepth').innerText = SETTINGS.worldDepth;
+          }
+          if (data.worldSettings.renderDistance !== undefined) {
+            SETTINGS.renderDistance = parseInt(data.worldSettings.renderDistance);
+            document.getElementById('rngDist').value = SETTINGS.renderDistance;
+            document.getElementById('valDist').innerText = SETTINGS.renderDistance;
+            document.getElementById('pauseRngDist').value = SETTINGS.renderDistance;
+            document.getElementById('pauseValDist').innerText = SETTINGS.renderDistance;
+          }
+        }
 
-  let remaining = count;
-  for (let i = 0; i < 9 && remaining > 0; i++) {
-    if (hotbarSlots[i] && hotbarSlots[i].type === itemType) {
-      const take = Math.min(hotbarSlots[i].count, remaining);
-      hotbarSlots[i].count -= take;
-      remaining -= take;
-      if (hotbarSlots[i].count <= 0) hotbarSlots[i] = null;
-    }
-  }
-  for (let i = 0; i < 16 && remaining > 0; i++) {
-    if (survivalInventory[i] && survivalInventory[i].type === itemType) {
-      const take = Math.min(survivalInventory[i].count, remaining);
-      survivalInventory[i].count -= take;
-      remaining -= take;
-      if (survivalInventory[i].count <= 0) survivalInventory[i] = null;
-    }
-  }
-  selected = getSlotType(hotbarSlots[hotbarSelectedIndex]);
-  updateHotbarUI();
-  updateInventoryUI();
-  return true;
-}
+        if (data.savedChunks) { 
+          for (const [chunkId, blocks] of Object.entries(data.savedChunks)) { 
+            saved.set(chunkId, blocks); 
+          } 
+        }
 
-function removeBlock(x, y, z, skipRecursive=false) {
-  const k = key(x, y, z);
-  if (!world.has(k)) return;
-  const block = world.get(k);
-  world.delete(k);
+        if (data.player) { 
+          PLAYER.pos.set(data.player.x, data.player.y, data.player.z); 
+          if (data.player.health !== undefined) PLAYER.health = data.player.health; 
+          if (data.player.respawnX !== undefined) PLAYER.respawn.set(data.player.respawnX, data.player.respawnY, data.player.respawnZ); 
+          
+          if (data.player.hotbar) {
+            for (let idx = 0; idx < 9; idx++) {
+              const val = data.player.hotbar[idx];
+              hotbarSlots[idx] = typeof val === 'string' ? { type: val, count: 1 } : (val || null);
+            }
+            hotbarSelectedIndex = data.player.selectedIndex || 0;
+            selected = getSlotType(hotbarSlots[hotbarSelectedIndex]);
+          }
 
-  const cx = Math.floor(x / CHUNK), cz = Math.floor(z / CHUNK);
-  if (saved.has(`${cx},${cz}`)) {
-    const arr = saved.get(`${cx},${cz}`);
-    const rx = Math.round(x), ry = Math.round(y), rz = Math.round(z);
-    const idx = arr.findIndex(b => Math.round(b.x) === rx && Math.round(b.y) === ry && Math.round(b.z) === rz);
-    if (idx !== -1) arr.splice(idx, 1);
-  }
-
-  if (gameMode === 'survival' && !skipRecursive) {
-    let droppedType = block.type;
-    if (droppedType === 'bed_head' || droppedType === 'bed_foot') droppedType = 'bed';
-    if (droppedType === 'leaves') droppedType = (Math.random() < 0.5) ? 'leaves' : 'sapling';
-    givePlayerItem(droppedType, 1);
-  }
-
-  if (block.type.startsWith('bed') && !skipRecursive) {
-     const dirs = [[1,0,0],[-1,0,0],[0,0,1],[0,0,-1]];
-     for(let d of dirs) {
-        const nb = world.get(key(x+d[0], y, z+d[2]));
-        if (nb && nb.type.startsWith('bed')) removeBlock(x+d[0], y, z+d[2], true);
-     }
-  }
-  needsMeshUpdate = true;
-}
-
-function growTree(wx, wy, wz) {
-  world.delete(key(wx, wy, wz));
-  const th = Math.floor(Math.random() * 2) + 3; 
-  for(let ty = 0; ty < th; ty++) world.set(key(wx, wy + ty, wz), { type: "wood", rot: 0 });
-  for(let lx = -1; lx <= 1; lx++) {
-    for(let lz = -1; lz <= 1; lz++) {
-      if (!world.has(key(wx + lx, wy + th - 1, wz + lz))) world.set(key(wx + lx, wy + th - 1, wz + lz), { type: "leaves", rot:0 });
-      if (!world.has(key(wx + lx, wy + th, wz + lz))) world.set(key(wx + lx, wy + th, wz + lz), { type: "leaves", rot:0 });
-    }
-  }
-  if (!world.has(key(wx, wy + th + 1, wz))) world.set(key(wx, wy + th + 1, wz), { type: "leaves", rot:0 });
-  needsMeshUpdate = true;
-}
-
-function rebuildMeshes() {
-  instancedMeshes.forEach(m => scene.remove(m));
-  instancedMeshes = [];
-
-  const visibleBlocks = {};
-  renderTypes.forEach(t => visibleBlocks[t] = []);
-
-  world.forEach((block, k) => {
-    const [x, y, z] = k.split(',').map(Number);
-    let isExposed = false;
-
-    const neighbors = [ key(x+1, y, z), key(x-1, y, z), key(x, y+1, z), key(x, y-1, z), key(x, y, z+1), key(x, y, z-1) ];
-    for (let nk of neighbors) {
-      const neighbor = world.get(nk);
-      if (!neighbor || ['water', 'glass', 'leaves', 'sapling'].includes(neighbor.type)) { isExposed = true; break; }
-    }
-    if (isExposed || ['leaves', 'sapling', 'water', 'glass'].includes(block.type) || block.type.startsWith('bed')) {
-      visibleBlocks[block.type].push({ x, y, z, rot: block.rot || 0 });
-    }
-  });
-
-  const dummy = new THREE.Object3D();
-  for (const type in visibleBlocks) {
-    const count = visibleBlocks[type].length;
-    if (count === 0) continue;
-
-    let useGeo = geo;
-    if (type === 'sapling') useGeo = saplingGeo;
-    else if (type.startsWith('bed')) useGeo = bedGeo;
-
-    const mesh = new THREE.InstancedMesh(useGeo, materials[type], count);
-    let i = 0;
-    visibleBlocks[type].forEach(b => {
-      dummy.position.set(b.x, b.y, b.z);
-      if (type.startsWith('bed')) dummy.position.y -= 0.25; 
-      if (type === "sapling") dummy.position.y -= 0.1;
-      dummy.rotation.set(0, b.rot, 0); 
-      dummy.updateMatrix();
-      mesh.setMatrixAt(i++, dummy.matrix);
-    });
-    mesh.instanceMatrix.needsUpdate = true;
-    scene.add(mesh);
-    instancedMeshes.push(mesh);
-  }
-}
-
-function updateChunks(tx, tz) {
-  const pcx = Math.floor(tx / CHUNK), pcz = Math.floor(tz / CHUNK);
-  const dist = SETTINGS.renderDistance; 
-  let chunksGen = false;
-  
-  for (let dx = -dist; dx <= dist; dx++) {
-    for (let dz = -dist; dz <= dist; dz++) {
-      const id = `${pcx + dx},${pcz + dz}`;
-      if (!active.has(id)) {
-        if (!saved.has(id)) {
-          const arr = [];
-          for (let x = 0; x < CHUNK; x++) {
-            for (let z = 0; z < CHUNK; z++) {
-              const wx = (pcx+dx) * CHUNK + x, wz = (pcz+dz) * CHUNK + z;
-              const surfaceH = Math.floor(Math.abs(Math.sin(wx * 0.2) + Math.cos(wz * 0.2)) * 2) + 2;
-              for (let y = surfaceH; y > surfaceH - SETTINGS.worldDepth; y--) {
-                let blockType = "stone";
-                if (y === surfaceH) blockType = "grass";
-                else if (y >= surfaceH - 2) blockType = "dirt";
-                else if (Math.random() < 0.001) blockType = "compacted_stone";
-
-                arr.push({ x: wx, y, z: wz, type: blockType, rot:0 });
-              }
-              if (SETTINGS.treesEnabled && Math.random() < 0.02) {
-                const th = Math.floor(Math.random() * 2) + 3;
-                for(let ty = 1; ty <= th; ty++) arr.push({ x: wx, y: surfaceH + ty, z: wz, type: "wood", rot:0 });
-                for(let lx = -1; lx <= 1; lx++) {
-                  for(let lz = -1; lz <= 1; lz++) {
-                    if (!arr.some(b => b.x===wx+lx && b.y===surfaceH+th && b.z===wz+lz)) arr.push({ x: wx+lx, y: surfaceH+th, z: wz+lz, type: "leaves", rot:0 });
-                    if (!arr.some(b => b.x===wx+lx && b.y===surfaceH+th+1 && b.z===wz+lz)) arr.push({ x: wx+lx, y: surfaceH+th+1, z: wz+lz, type: "leaves", rot:0 });
-                  }
-                }
-                arr.push({ x: wx, y: surfaceH + th + 2, z: wz, type: "leaves", rot:0 });
-              }
+          if (data.player.survivalInventory) {
+            for (let idx = 0; idx < 16; idx++) {
+              const val = data.player.survivalInventory[idx];
+              survivalInventory[idx] = typeof val === 'string' ? { type: val, count: 1 } : (val || null);
             }
           }
-          saved.set(id, arr);
         }
-        saved.get(id).forEach(b => world.set(key(b.x, b.y, b.z), { type: b.type, rot: b.rot }));
-        active.add(id); chunksGen = true;
-      }
-    }
-  }
-  if (chunksGen) needsMeshUpdate = true;
-}
 
-function solid(b) { return b && b.type !== "lava" && b.type !== "water" && b.type !== "sapling"; }
-function collides(x, y, z) {
-  for (let dx = -1; dx <= 1; dx++) {
-    for (let dy = -2; dy <= 2; dy++) {
-      for (let dz = -1; dz <= 1; dz++) {
-        const cx = Math.round(x) + dx, cy = Math.round(y) + dy, cz = Math.round(z) + dz;
-        const b = world.get(key(cx, cy, cz));
-        if (solid(b) && Math.abs(x - cx) < (PLAYER.width / 2 + 0.5) && y < cy + 0.5 && y + PLAYER.height > cy - 0.5 && Math.abs(z - cz) < (PLAYER.width / 2 + 0.5)) return { x: cx, y: cy, z: cz };
-      }
-    }
-  } return null;
-}
-function intersectsPlayer(bx, by, bz) { return Math.abs(PLAYER.pos.x - bx) < (PLAYER.width / 2 + 0.5) && PLAYER.pos.y < by + 0.5 && PLAYER.pos.y + PLAYER.height > by - 0.5 && Math.abs(PLAYER.pos.z - bz) < (PLAYER.width / 2 + 0.5); }
+        needsMeshUpdate = true;
 
-function raycastVoxel(clientX, clientY) {
-  const mouse = new THREE.Vector2((clientX / window.innerWidth) * 2 - 1, -(clientY / window.innerHeight) * 2 + 1);
-  const raycaster = new THREE.Raycaster(); raycaster.setFromCamera(mouse, camera);
-  let dist = 0; const maxDist = firstPerson ? 6 : 16;
-  let currentVoxel = null, previousVoxel = null;
-
-  while (dist < maxDist) {
-    const check = raycaster.ray.origin.clone().addScaledVector(raycaster.ray.direction, dist);
-    const v = new THREE.Vector3(Math.round(check.x), Math.round(check.y), Math.round(check.z));
-    
-    if (!currentVoxel || !currentVoxel.equals(v)) {
-      previousVoxel = currentVoxel; currentVoxel = v;
-      const block = world.get(key(v.x, v.y, v.z));
-      if (block && block.type !== 'water') {
-        if (!previousVoxel) previousVoxel = currentVoxel.clone().add(new THREE.Vector3(0, 1, 0));
-        if (firstPerson || v.distanceTo(PLAYER.pos) < 7) return { pos: currentVoxel, normal: previousVoxel.clone().sub(currentVoxel) };
-        else return null; 
-      }
-    }
-    dist += 0.05;
-  } return null;
-}
-
-const keys = {}; let yaw = Math.PI / 4, firstPerson = false;
-let mouseX = window.innerWidth / 2, mouseY = window.innerHeight / 2;
-window.onmousemove = e => { mouseX = e.clientX; mouseY = e.clientY; };
-
-function handleBlockInteraction(breakBlock, placeBlock) {
-  if (!gameStarted || areMenusOpen()) return;
-  const hit = raycastVoxel(mouseX, mouseY);
-  if (!hit) return;
-
-  if (breakBlock) {
-    removeBlock(hit.pos.x, hit.pos.y, hit.pos.z);
-  } else if (placeBlock && selected) {
-    const currentSlot = hotbarSlots[hotbarSelectedIndex];
-    if (gameMode === 'survival' && (!currentSlot || currentSlot.count <= 0)) return;
-
-    const p = hit.pos.clone().add(hit.normal);
-    if (!intersectsPlayer(p.x, p.y, p.z)) {
-      let placed = false;
-      if (selected === 'bed') {
-          let nYaw = yaw % (Math.PI * 2); if (nYaw < 0) nYaw += Math.PI * 2;
-          let dx = 0, dz = 0, rot = 0;
-          if (nYaw < Math.PI/4 || nYaw >= 7*Math.PI/4) { dz = -1; rot = 0; } else if (nYaw >= Math.PI/4 && nYaw < 3*Math.PI/4) { dx = -1; rot = Math.PI/2; } else if (nYaw >= 3*Math.PI/4 && nYaw < 5*Math.PI/4) { dz = 1; rot = Math.PI; } else { dx = 1; rot = -Math.PI/2; } 
-          const foot = p; const head = p.clone().add(new THREE.Vector3(dx, 0, dz));
-          if (!world.has(key(head.x, head.y, head.z)) && !intersectsPlayer(head.x, head.y, head.z)) { 
-            addBlock(foot.x, foot.y, foot.z, 'bed_foot', rot); 
-            addBlock(head.x, head.y, head.z, 'bed_head', rot); 
-            placed = true;
-          }
-      } else { 
-        addBlock(p.x, p.y, p.z, selected, 0); 
-        placed = true;
-      }
-
-      if (placed && gameMode === 'survival') {
-        currentSlot.count--;
-        if (currentSlot.count <= 0) {
-          hotbarSlots[hotbarSelectedIndex] = null;
-          selected = null;
+        if (data.version !== GAME_VERSION) { 
+          document.getElementById('mainMenu').style.display = 'none'; 
+          document.getElementById('versionAlertMenu').style.display = 'flex'; 
+          window.tempLoadMode = data.gameMode || 'survival'; 
+        } else { 
+          startGame(data.gameMode || 'survival', true); 
         }
-        updateHotbarUI();
-        updateInventoryUI();
-      }
-    }
-  }
-}
-
-function startGame(mode, isLoaded = false) { 
-  gameMode = mode; 
-  gameStarted = true; 
-  document.getElementById('mainMenu').style.display = 'none'; 
-  document.getElementById('versionAlertMenu').style.display = 'none'; 
-  document.getElementById('ui').style.display = 'block'; 
-  document.getElementById('hotbar').style.display = 'flex'; 
-  document.getElementById('btnSave').style.display = 'block'; 
-  if (!isLoaded) {
-    PLAYER.pos.set(0, 10, 0); 
-    hotbarSlots.fill(null);
-    survivalInventory.fill(null);
-    selected = null;
-  } 
-  if (gameMode === 'survival') document.getElementById('healthContainer').style.display = 'block'; 
-  updateHotbarUI();
-}
-
-function triggerSaveGame() {
-  const data = { 
-    version: GAME_VERSION, gameMode, 
-    player: { x: PLAYER.pos.x, y: PLAYER.pos.y, z: PLAYER.pos.z, health: PLAYER.health, respawnX: PLAYER.respawn.x, respawnY: PLAYER.respawn.y, respawnZ: PLAYER.respawn.z, hotbar: hotbarSlots, survivalInventory, selectedIndex: hotbarSelectedIndex }, 
-    savedChunks: Object.fromEntries(saved), playerColor: SETTINGS.playerColor, 
-    worldSettings: { worldDepth: SETTINGS.worldDepth, treesEnabled: SETTINGS.treesEnabled, renderDistance: SETTINGS.renderDistance } 
-  }; 
-  const a = document.createElement("a"); 
-  a.href = URL.createObjectURL(new Blob([JSON.stringify(data)], { type: "application/json" })); 
-  a.download = "minimine-world.json"; a.click(); 
-}
-
-document.getElementById('btnSurvival').addEventListener('click', () => startGame('survival')); 
-document.getElementById('btnCreative').addEventListener('click', () => startGame('creative'));
-document.getElementById('btnSettingsOpen').addEventListener('click', () => { document.getElementById('mainMenu').style.display = 'none'; document.getElementById('settingsMenu').style.display = 'flex'; });
-document.getElementById('btnSettingsClose').addEventListener('click', () => { 
-  SETTINGS.controlMode = document.getElementById('selControls').value;
-  document.getElementById('uiActionControls').innerText = SETTINGS.controlMode === 'mouse' ? "LMB : Break | RMB : Place" : ". Key : Break | / Key : Place";
-  SETTINGS.playerColor = document.getElementById('colPlayer').value; playerMesh.material.color.set(SETTINGS.playerColor); 
-  SETTINGS.treesEnabled = document.getElementById('chkTrees').checked; 
-  SETTINGS.renderDistance = parseInt(document.getElementById('rngDist').value); 
-  SETTINGS.worldDepth = parseInt(document.getElementById('rngDepth').value); 
-  world.clear(); active.clear(); saved.clear(); needsMeshUpdate = true; activeSaplings.length = 0; 
-  document.getElementById('settingsMenu').style.display = 'none'; document.getElementById('mainMenu').style.display = 'flex'; 
-});
-
-document.getElementById('btnSave').addEventListener('click', triggerSaveGame);
-
-/* --- PAUSE MENU LOGIC --- */
-document.getElementById('pauseSelControls').addEventListener('change', (e) => {
-  SETTINGS.controlMode = e.target.value;
-  document.getElementById('selControls').value = e.target.value;
-  document.getElementById('uiActionControls').innerText = SETTINGS.controlMode === 'mouse' ? "LMB : Break | RMB : Place" : ". Key : Break | / Key : Place";
-});
-document.getElementById('pauseColPlayer').addEventListener('input', (e) => {
-  SETTINGS.playerColor = e.target.value;
-  document.getElementById('colPlayer').value = e.target.value;
-  playerMesh.material.color.set(SETTINGS.playerColor);
-});
-document.getElementById('pauseRngDist').addEventListener('input', (e) => {
-  SETTINGS.renderDistance = parseInt(e.target.value);
-  document.getElementById('rngDist').value = e.target.value;
-  document.getElementById('valDist').innerText = e.target.value;
-  document.getElementById('pauseValDist').innerText = e.target.value;
-  needsMeshUpdate = true;
-});
-document.getElementById('btnPauseResume').addEventListener('click', () => {
-  document.getElementById('pauseMenu').style.display = 'none';
-});
-document.getElementById('btnPauseSave').addEventListener('click', triggerSaveGame);
-document.getElementById('btnPauseExit').addEventListener('click', () => {
-  document.getElementById('pauseMenu').style.display = 'none';
-  document.getElementById('ui').style.display = 'none';
-  document.getElementById('hotbar').style.display = 'none';
-  document.getElementById('healthContainer').style.display = 'none';
-  document.getElementById('crosshair').style.display = 'none';
-  document.getElementById('btnSave').style.display = 'none';
-  document.getElementById('mainMenu').style.display = 'flex';
-  gameStarted = false;
-  hideTooltip();
-});
-
-/* --- FILE LOAD --- */
-document.getElementById('fileLoad').addEventListener('change', (e) => {
-  const file = e.target.files[0]; if (!file) return;
-  const reader = new FileReader();
-  reader.onload = (event) => {
-    try {
-      const data = JSON.parse(event.target.result);
-      world.clear(); active.clear(); saved.clear(); activeSaplings.length = 0;
-      if (data.playerColor) { 
-        SETTINGS.playerColor = data.playerColor; 
-        document.getElementById('colPlayer').value = data.playerColor; 
-        document.getElementById('pauseColPlayer').value = data.playerColor; 
-        playerMesh.material.color.set(SETTINGS.playerColor); 
-      }
-      if (data.worldSettings) { 
-        SETTINGS.treesEnabled = data.worldSettings.treesEnabled; 
-        document.getElementById('chkTrees').checked = SETTINGS.treesEnabled; 
-        if (data.worldSettings.worldDepth !== undefined) {
-          SETTINGS.worldDepth = parseInt(data.worldSettings.worldDepth); 
-          document.getElementById('rngDepth').value = SETTINGS.worldDepth;
-          document.getElementById('valDepth').innerText = SETTINGS.worldDepth;
-        }
-        if (data.worldSettings.renderDistance !== undefined) {
-          SETTINGS.renderDistance = parseInt(data.worldSettings.renderDistance);
-          document.getElementById('rngDist').value = SETTINGS.renderDistance;
-          document.getElementById('valDist').innerText = SETTINGS.renderDistance;
-          document.getElementById('pauseRngDist').value = SETTINGS.renderDistance;
-          document.getElementById('pauseValDist').innerText = SETTINGS.renderDistance;
-        }
-      }
-      if (data.savedChunks) { for (const [chunkId, blocks] of Object.entries(data.savedChunks)) { saved.set(chunkId, blocks); } }
-      if (data.player) { 
-        PLAYER.pos.set(data.player.x, data.player.y, data.player.z); 
-        if (data.player.health !== undefined) PLAYER.health = data.player.health; 
-        if (data.player.respawnX !== undefined) PLAYER.respawn.set(data.player.respawnX, data.player.respawnY, data.player.respawnZ); 
-        if (data.player.hotbar) {
-          for(let idx=0; idx<9; idx++) {
-            const val = data.player.hotbar[idx];
-            hotbarSlots[idx] = typeof val === 'string' ? { type: val, count: 1 } : (val || null);
-          }
-          hotbarSelectedIndex = data.player.selectedIndex || 0;
-          selected = getSlotType(hotbarSlots[hotbarSelectedIndex]);
-        }
-        if (data.player.survivalInventory) {
-          for(let idx=0; idx<16; idx++) {
-            const val = data.player.survivalInventory[idx];
-            survivalInventory[idx] = typeof val === 'string' ? { type: val, count: 1 } : (val || null);
-          }
-        }
-      }
-      needsMeshUpdate = true;
-      if (data.version !== GAME_VERSION) { document.getElementById('mainMenu').style.display = 'none'; document.getElementById('versionAlertMenu').style.display = 'flex'; window.tempLoadMode = data.gameMode || 'survival'; } else { startGame(data.gameMode || 'survival', true); }
-    } catch (err) { alert("Error loading world."); console.error(err); } finally { e.target.value = ""; }
-  };
-  reader.readAsText(file);
-});
-
-document.getElementById('btnAlertBack').addEventListener('click', () => { document.getElementById('versionAlertMenu').style.display = 'none'; document.getElementById('mainMenu').style.display = 'flex'; });
-document.getElementById('btnAlertExpert').addEventListener('click', () => { startGame(window.tempLoadMode || 'survival', true); });
-document.getElementById('rngDist').addEventListener('input', (e) => document.getElementById('valDist').innerText = e.target.value);
-document.getElementById('rngDepth').addEventListener('input', (e) => document.getElementById('valDepth').innerText = e.target.value);
-
-/* --- CRAFTING LOGIC --- */
-let craftGridContent = new Array(9).fill(null);
-const recipes = [ 
-  { result: "bed", pattern: [null, null, null, "leaves", "leaves", "leaves", "wood", "wood", "wood"] },
-  { result: "compacted_stone", pattern: ["stone", "stone", "stone", "stone", "stone", "stone", "stone", "stone", "stone"] },
-  { result: "furnace", pattern: ["compacted_stone", "compacted_stone", "compacted_stone", "compacted_stone", null, "compacted_stone", "compacted_stone", "compacted_stone", "compacted_stone"] }
-];
-
-function checkRecipes() {
-  const resultSlot = document.getElementById('craftResult'); let foundRecipe = null;
-  for (let r of recipes) { if (JSON.stringify(r.pattern) === JSON.stringify(craftGridContent)) { foundRecipe = r.result; break; } }
-  if (foundRecipe) { resultSlot.style.backgroundImage = `url(${uiTextures[foundRecipe]})`; resultSlot.dataset.result = foundRecipe; } else { resultSlot.style.backgroundImage = 'none'; resultSlot.dataset.result = ""; }
-}
-
-document.querySelectorAll('#craftingGrid .craft-slot').forEach(slot => {
-  slot.addEventListener('mousedown', (e) => {
-    const idx = parseInt(slot.dataset.idx);
-    if (e.button === 0 && selected) { craftGridContent[idx] = selected; slot.style.backgroundImage = `url(${uiTextures[selected]})`; } else if (e.button === 2) { craftGridContent[idx] = null; slot.style.backgroundImage = 'none'; } 
-    checkRecipes();
-    handleTooltip(e, craftGridContent[idx]);
-  }); 
-  slot.addEventListener('mousemove', (e) => handleTooltip(e, craftGridContent[parseInt(slot.dataset.idx)]));
-  slot.addEventListener('mouseleave', hideTooltip);
-  slot.addEventListener('contextmenu', e => e.preventDefault());
-});
-
-const cr = document.getElementById('craftResult');
-cr.addEventListener('mousemove', (e) => handleTooltip(e, cr.dataset.result));
-cr.addEventListener('mouseleave', hideTooltip);
-cr.addEventListener('click', (e) => { 
-  const res = e.target.dataset.result; 
-  if(res) { 
-    const ingredientCounts = {};
-    for (let item of craftGridContent) {
-      if (item) ingredientCounts[item] = (ingredientCounts[item] || 0) + 1;
-    }
-
-    if (gameMode === 'survival') {
-      for (let [item, reqCount] of Object.entries(ingredientCounts)) {
-        let avail = 0;
-        for (let s of hotbarSlots) if (s && s.type === item) avail += s.count;
-        for (let s of survivalInventory) if (s && s.type === item) avail += s.count;
-        if (avail < reqCount) return; 
-      }
-      for (let [item, reqCount] of Object.entries(ingredientCounts)) {
-        consumePlayerItem(item, reqCount);
+      } catch (err) { 
+        alert("Error loading world from browser storage."); 
+        console.error(err); 
       }
     }
 
-    givePlayerItem(res, 1);
-    craftGridContent.fill(null); 
-    document.querySelectorAll('#craftingGrid .craft-slot').forEach(s => s.style.backgroundImage = 'none'); 
-    checkRecipes(); 
-    hideTooltip();
-  } 
-});
+    // --- EVENT LISTENERS ---
 
-let invCraftGridContent = new Array(4).fill(null);
-const invRecipes = [ { result: "crafting_table", pattern: ["wood", "wood", "wood", "wood"] } ];
+    document.getElementById('btnSurvival').addEventListener('click', () => startGame('survival')); 
+    document.getElementById('btnCreative').addEventListener('click', () => startGame('creative'));
+    document.getElementById('btnLoad').addEventListener('click', loadGameData);
+    document.getElementById('btnSave').addEventListener('click', triggerSaveGame);
+    document.getElementById('btnPauseSave').addEventListener('click', triggerSaveGame);
 
-function checkInvRecipes() {
-  const resultSlot = document.getElementById('invCraftResult'); let foundRecipe = null;
-  for (let r of invRecipes) { if (JSON.stringify(r.pattern) === JSON.stringify(invCraftGridContent)) { foundRecipe = r.result; break; } }
-  if (foundRecipe) { resultSlot.style.backgroundImage = `url(${uiTextures[foundRecipe]})`; resultSlot.dataset.result = foundRecipe; } else { resultSlot.style.backgroundImage = 'none'; resultSlot.dataset.result = ""; }
-}
-
-document.querySelectorAll('#invCraftingGrid .craft-slot').forEach(slot => {
-  slot.addEventListener('mousedown', (e) => {
-    const idx = parseInt(slot.dataset.idx);
-    if (e.button === 0 && selected) { invCraftGridContent[idx] = selected; slot.style.backgroundImage = `url(${uiTextures[selected]})`; } else if (e.button === 2) { invCraftGridContent[idx] = null; slot.style.backgroundImage = 'none'; } 
-    checkInvRecipes();
-    handleTooltip(e, invCraftGridContent[idx]);
-  }); 
-  slot.addEventListener('mousemove', (e) => handleTooltip(e, invCraftGridContent[parseInt(slot.dataset.idx)]));
-  slot.addEventListener('mouseleave', hideTooltip);
-  slot.addEventListener('contextmenu', e => e.preventDefault());
-});
-
-const icr = document.getElementById('invCraftResult');
-icr.addEventListener('mousemove', (e) => handleTooltip(e, icr.dataset.result));
-icr.addEventListener('mouseleave', hideTooltip);
-icr.addEventListener('click', (e) => { 
-  const res = e.target.dataset.result; 
-  if(res) { 
-    const ingredientCounts = {};
-    for (let item of invCraftGridContent) {
-      if (item) ingredientCounts[item] = (ingredientCounts[item] || 0) + 1;
+    function startGame(mode, isLoaded = false) { 
+      gameMode = mode; 
+      gameStarted = true; 
+      document.getElementById('mainMenu').style.display = 'none'; 
+      document.getElementById('versionAlertMenu').style.display = 'none'; 
+      document.getElementById('ui').style.display = 'block'; 
+      document.getElementById('hotbar').style.display = 'flex'; 
+      document.getElementById('btnSave').style.display = 'block'; 
+      if (!isLoaded) {
+        PLAYER.pos.set(0, 10, 0); 
+        hotbarSlots.fill(null);
+        survivalInventory.fill(null);
+        selected = null;
+      } 
+      if (gameMode === 'survival') document.getElementById('healthContainer').style.display = 'block'; 
+      updateHotbarUI();
     }
 
-    if (gameMode === 'survival') {
-      for (let [item, reqCount] of Object.entries(ingredientCounts)) {
-        let avail = 0;
-        for (let s of hotbarSlots) if (s && s.type === item) avail += s.count;
-        for (let s of survivalInventory) if (s && s.type === item) avail += s.count;
-        if (avail < reqCount) return;
-      }
-      for (let [item, reqCount] of Object.entries(ingredientCounts)) {
-        consumePlayerItem(item, reqCount);
-      }
+    function animate() {
+      requestAnimationFrame(animate);
+      renderer.render(scene, camera);
     }
-
-    givePlayerItem(res, 1);
-    invCraftGridContent.fill(null); 
-    document.querySelectorAll('#invCraftingGrid .craft-slot').forEach(s => s.style.backgroundImage = 'none'); 
-    checkInvRecipes(); 
-    hideTooltip();
-  } 
-});
-
-function closeAllMenus() {
-  document.getElementById('craftingMenu').style.display = 'none';
-  document.getElementById('inventoryMenu').style.display = 'none';
-  document.getElementById('creativeMenu').style.display = 'none';
-  hideTooltip();
-}
-
-document.getElementById('btnCloseCrafting').addEventListener('click', closeAllMenus);
-document.getElementById('btnCloseInventory').addEventListener('click', closeAllMenus);
-document.getElementById('btnCloseCreative').addEventListener('click', closeAllMenus);
-
-function areMenusOpen() { 
-  return document.getElementById('craftingMenu').style.display === 'flex' || 
-         document.getElementById('inventoryMenu').style.display === 'flex' ||
-         document.getElementById('creativeMenu').style.display === 'flex' ||
-         document.getElementById('pauseMenu').style.display === 'flex'; 
-}
-
-window.onkeydown = e => { 
-  keys[e.key.toLowerCase()] = true; 
-  if(e.key === "f") { firstPerson = !firstPerson; document.getElementById('crosshair').style.display = firstPerson ? 'block' : 'none'; } 
-  
-  if (e.key === "Escape" && gameStarted) {
-    if (document.getElementById('craftingMenu').style.display === 'flex' || 
-        document.getElementById('inventoryMenu').style.display === 'flex' ||
-        document.getElementById('creativeMenu').style.display === 'flex') {
-      closeAllMenus();
-      return;
-    }
-    const pauseMenu = document.getElementById('pauseMenu');
-    if (pauseMenu.style.display === 'flex') {
-      pauseMenu.style.display = 'none';
-    } else {
-      document.getElementById('pauseSelControls').value = SETTINGS.controlMode;
-      document.getElementById('pauseColPlayer').value = SETTINGS.playerColor;
-      document.getElementById('pauseRngDist').value = SETTINGS.renderDistance;
-      document.getElementById('pauseValDist').innerText = SETTINGS.renderDistance;
-      pauseMenu.style.display = 'flex';
-      hideTooltip();
-    }
-    return;
-  }
-
-  const num = parseInt(e.key);
-  if (!areMenusOpen() && num >= 1 && num <= 9) {
-    hotbarSelectedIndex = num - 1;
-    selected = getSlotType(hotbarSlots[hotbarSelectedIndex]);
-    updateHotbarUI();
-  }
-
-  if (SETTINGS.controlMode === 'keys' && !areMenusOpen()) {
-    if (e.key === '.') handleBlockInteraction(true, false);
-    if (e.key === '/') handleBlockInteraction(false, true);
-  }
-
-  if(e.key.toLowerCase() === "e" && gameStarted) {
-    if (areMenusOpen()) { 
-      closeAllMenus();
-      document.getElementById('pauseMenu').style.display = 'none';
-      return; 
-    }
-    
-    if (gameMode === 'creative') {
-      document.getElementById('creativeMenu').style.display = 'flex';
-      updateCreativeMenuUI();
-      return;
-    }
-    
-    const hit = raycastVoxel(mouseX, mouseY);
-    if (hit && world.get(key(hit.pos.x, hit.pos.y, hit.pos.z))?.type === 'crafting_table') { 
-      document.getElementById('craftingMenu').style.display = 'flex'; 
-      return; 
-    }
-    document.getElementById('inventoryMenu').style.display = 'flex';
-    updateInventoryUI();
-  }
-};
-window.onkeyup = e => keys[e.key.toLowerCase()] = false;
-
-window.onmousedown = e => {
-  if (SETTINGS.controlMode !== 'mouse' || !gameStarted || e.target.tagName === 'BUTTON' || e.target.closest('#hotbar') || areMenusOpen()) return;
-  if (e.button === 0) handleBlockInteraction(true, false);
-  if (e.button === 2) handleBlockInteraction(false, true);
-};
-window.oncontextmenu = e => { if(gameStarted && !areMenusOpen()) e.preventDefault(); };
-
-window.addEventListener('resize', () => {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
-});
-
-/* --- RENDER LOOP --- */
-let menuTime = 0;
-function animate() {
-  requestAnimationFrame(animate);
-  const dt = Math.min(clock.getDelta(), 0.1);
-
-  if (gameStarted && document.getElementById('pauseMenu').style.display !== 'flex') {
-    updateChunks(PLAYER.pos.x, PLAYER.pos.z);
-    const chunkLoaded = active.has(`${Math.floor(PLAYER.pos.x/CHUNK)},${Math.floor(PLAYER.pos.z/CHUNK)}`);
-
-    const sp = (keys.shift ? 12 : 6) * dt;
-    let nx = PLAYER.pos.x, nz = PLAYER.pos.z;
-    if (keys.w && !areMenusOpen()) { nx -= Math.sin(yaw)*sp; nz -= Math.cos(yaw)*sp; }
-    if (keys.s && !areMenusOpen()) { nx += Math.sin(yaw)*sp; nz += Math.cos(yaw)*sp; }
-    if (keys.a && !areMenusOpen()) { nx -= Math.cos(yaw)*sp; nz += Math.sin(yaw)*sp; }
-    if (keys.d && !areMenusOpen()) { nx += Math.cos(yaw)*sp; nz -= Math.sin(yaw)*sp; }
-    if (!collides(nx, PLAYER.pos.y, nz)) { PLAYER.pos.x = nx; PLAYER.pos.z = nz; }
-
-    if (chunkLoaded) PLAYER.velY -= 20 * dt; else PLAYER.velY = 0;
-    let ny = PLAYER.pos.y + PLAYER.velY * dt;
-    const hit = collides(PLAYER.pos.x, ny, PLAYER.pos.z);
-    if (hit) { if (PLAYER.velY < 0) { PLAYER.pos.y = hit.y + 0.5; PLAYER.onGround = true; } PLAYER.velY = 0; } else { PLAYER.pos.y = ny; PLAYER.onGround = false; }
-
-    if (keys[" "] && PLAYER.onGround && !areMenusOpen()) PLAYER.velY = 8;
-    if (!areMenusOpen()) { if (keys.arrowleft) yaw += 2 * dt; if (keys.arrowright) yaw -= 2 * dt; }
-    playerMesh.position.set(PLAYER.pos.x, PLAYER.pos.y + PLAYER.height/2, PLAYER.pos.z);
-    
-    if (firstPerson) {
-      camera.position.set(PLAYER.pos.x, PLAYER.pos.y + 1.6, PLAYER.pos.z);
-      camera.lookAt(PLAYER.pos.x - Math.sin(yaw), PLAYER.pos.y + 1.6, PLAYER.pos.z - Math.cos(yaw));
-      playerMesh.visible = false;
-    } else {
-      camera.position.set(PLAYER.pos.x + 8*Math.sin(yaw), PLAYER.pos.y + 5, PLAYER.pos.z + 8*Math.cos(yaw));
-      camera.lookAt(PLAYER.pos.x, PLAYER.pos.y + 1, PLAYER.pos.z);
-      playerMesh.visible = true;
-    }
-
-    if (!areMenusOpen()) {
-      const aimHit = raycastVoxel(mouseX, mouseY);
-      if (aimHit) {
-        highlightBox.position.copy(aimHit.pos);
-        highlightBox.visible = true;
-      } else {
-        highlightBox.visible = false;
-      }
-    } else {
-      highlightBox.visible = false;
-    }
-
-    if (gameMode === 'survival') {
-      document.getElementById("healthBar").style.width = (PLAYER.health/PLAYER.maxHealth*100) + "%";
-      world.forEach((b, k) => { if (b.type === "lava") { const [bx, by, bz] = k.split(',').map(Number); if (PLAYER.pos.distanceTo(new THREE.Vector3(bx,by,bz)) < 1.2) PLAYER.health -= 3 * dt; } });
-      if (PLAYER.health <= 0 || PLAYER.pos.y < -SETTINGS.worldDepth - 10) { PLAYER.pos.copy(PLAYER.respawn); PLAYER.health = PLAYER.maxHealth; PLAYER.velY = 0; }
-    } else if (PLAYER.pos.y < -SETTINGS.worldDepth - 10) PLAYER.pos.copy(PLAYER.respawn);
-
-    for (let i = activeSaplings.length - 1; i >= 0; i--) {
-      const sapling = activeSaplings[i]; const block = world.get(key(sapling.x, sapling.y, sapling.z));
-      if (!block || block.type !== 'sapling') { activeSaplings.splice(i, 1); continue; }
-      sapling.age += dt; if (sapling.age > 5) { growTree(sapling.x, sapling.y, sapling.z); activeSaplings.splice(i, 1); }
-    }
-  } else if (!gameStarted) {
-    menuTime += dt * 0.2; updateChunks(0, 0);
-    camera.position.set(Math.sin(menuTime)*15, 10, Math.cos(menuTime)*15); camera.lookAt(0, 3, 0); playerMesh.visible = false;
-  }
-  
-  if (needsMeshUpdate) { rebuildMeshes(); needsMeshUpdate = false; }
-  renderer.render(scene, camera);
-}
-animate();
-</script>
+    animate();
+  </script>
 </body>
 </html>
